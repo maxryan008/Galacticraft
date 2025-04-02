@@ -640,10 +640,7 @@ public class CelestialScreen extends Screen implements ClientSatelliteAccessor.S
         float alpha = 1.0F;
 
         if (isGrandchildBody(body)) {
-            boolean selected = body == this.selectedBody;
-            if (this.selectedBody != null) {
-                selected = body == this.selectedBody || (body.parent().value().name().equals(this.selectedBody.name()) && this.selectionState != EnumSelection.SELECTED);
-            }
+            boolean selected = body == this.selectedBody || (body.parent().value() == this.selectedBody && this.selectionState != EnumSelection.SELECTED);
             boolean ready = this.lastSelectedBody != null || this.ticksSinceSelectionF > 35;
             boolean isSibling = getSiblings(this.selectedBody).contains(body);
             boolean isPossible = (!isSatellite(body) || ((Satellite) body.type()).ownershipData(body.config()).canAccess(Objects.requireNonNull(this.minecraft).player))/* || (this.possibleBodies != null && this.possibleBodies.contains(body))*/;

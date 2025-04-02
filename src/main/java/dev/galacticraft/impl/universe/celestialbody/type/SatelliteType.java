@@ -47,13 +47,9 @@ import dev.galacticraft.impl.universe.position.config.OrbitalCelestialPositionCo
 import dev.galacticraft.impl.universe.position.config.SatelliteConfig;
 import dev.galacticraft.impl.universe.position.type.OrbitalCelestialPositionType;
 import dev.galacticraft.mod.Constant;
-import dev.galacticraft.mod.client.render.dimension.SpaceSkyRenderer;
 import dev.galacticraft.mod.data.gen.SatelliteChunkGenerator;
-import dev.galacticraft.mod.tag.GCTags;
 import dev.galacticraft.mod.util.Translations;
 import dev.galacticraft.mod.world.biome.GCBiomes;
-import dev.galacticraft.mod.world.dimension.GCDimensions;
-import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
@@ -111,30 +107,13 @@ public class SatelliteType extends CelestialBodyType<SatelliteConfig> implements
     @ApiStatus.Internal
     public static CelestialBody<SatelliteConfig, SatelliteType> registerSatellite(@NotNull MinecraftServer server, @NotNull ServerPlayer player, Holder<CelestialBody<?, ?>> parent, StructureTemplate structure) {
         ResourceLocation id = ResourceLocation.parse(parent.unwrapKey().get().location() + "_" + player.getScoreboardName().toLowerCase(Locale.ROOT));
-        DimensionType type = new DimensionType(
-                OptionalLong.empty(), // fixedTime
-                true, // hasSkyLight
-                false, // hasCeiling
-                false, // ultraWarm
-                false, // natural
-                1.0, // coordinateScale
-                false, // bedWorks
-                false, // respawnAnchorWorks
-                0, // minY
-                256, // height
-                256, // logicalHeight
-                GCTags.INFINIBURN_SATELLITE, // infiniburn
-                Constant.id("satellite"), // effectsLocation
-                0, // ambientLight
-                new DimensionType.MonsterSettings(false, true, UniformInt.of(0, 7), 0)
-        );
+        DimensionType type = new DimensionType(OptionalLong.empty(), true, false, false, true, 1, false, false, 0, 256, 256, TagKey.create(Registries.BLOCK, Constant.id("infiniburn_space")), Constant.id("space_sky"), 0, new DimensionType.MonsterSettings(false, true, UniformInt.of(0, 7), 0));
         SatelliteChunkGenerator chunkGenerator = new SatelliteChunkGenerator(server.registryAccess().registryOrThrow(Registries.BIOME).getHolderOrThrow(GCBiomes.SPACE), structure);
         SatelliteOwnershipData ownershipData = SatelliteOwnershipData.create(player.getUUID(), player.getScoreboardName(), new LinkedList<>(), false);
         CelestialPosition<?, ?> position = new CelestialPosition<>(OrbitalCelestialPositionType.INSTANCE, new OrbitalCelestialPositionConfig(1550, 10.0f, 0.0F, false));
-        CelestialDisplay<?, ?> display = new CelestialDisplay<>(IconCelestialDisplayType.INSTANCE, new IconCelestialDisplayConfig(Constant.CelestialBody.SPACE_STATION, 0, 0, 16, 16));
+        CelestialDisplay<?, ?> display = new CelestialDisplay<>(IconCelestialDisplayType.INSTANCE, new IconCelestialDisplayConfig(Constant.id("satellite"), 0, 0, 16, 16));
         CelestialRingDisplay<?, ?> ring = new CelestialRingDisplay<>(DefaultCelestialRingDisplayType.INSTANCE, new DefaultCelestialRingDisplayConfig());
         ResourceKey<Level> key = ResourceKey.create(Registries.DIMENSION, id);
-        //DimensionRenderingRegistry.registerSkyRenderer(key, new SpaceSkyRenderer());
         DynamicDimensionRegistry registry = DynamicDimensionRegistry.from(server);
         assert server.getLevel(key) == null : "World already registered?!";
         assert registry.anyDimensionExists(id) : "Dimension Type already registered?!";
