@@ -1,9 +1,10 @@
 package dev.galacticraft.mod.machine.multiblock;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public abstract class MultiblockShell {
@@ -52,4 +53,5 @@ public abstract class MultiblockShell {
 
     public abstract void onFormed(Level level, BlockPos min, BlockPos max, List<BlockPos> valves);
     public abstract void onBroken(Level level, BlockPos origin);
+    public abstract boolean onClicked(Level level, BlockPos clickedBlock, BlockPos clickedPos, InteractionHand interactionHand, Player player);
 }

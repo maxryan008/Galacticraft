@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 public abstract class PersistentContainerMultiblock<T> extends MultiblockShell {
     protected T storedData;
     private final Supplier<T> defaultSupplier;
-    private final List<BlockPos> valvePositions = new ArrayList<>();
+    final List<BlockPos> valvePositions = new ArrayList<>();
 
     public PersistentContainerMultiblock(int maxX, int maxY, int maxZ, List<ShellBlockRule> rules, Supplier<T> defaultSupplier) {
         super(maxX, maxY, maxZ, rules);

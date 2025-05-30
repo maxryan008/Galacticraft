@@ -1,10 +1,16 @@
 package dev.galacticraft.mod.machine.multiblock.multiblocks;
 
 import dev.galacticraft.mod.content.GCBlocks;
-import dev.galacticraft.mod.machine.multiblock.MultiblockShell;
 import dev.galacticraft.mod.machine.multiblock.ShellBlockRule;
 import dev.galacticraft.mod.machine.multiblock.ShellComponent;
+import dev.galacticraft.mod.mixin.BucketItemAccessor;
+import dev.galacticraft.mod.mixin.BucketItemMixin;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BucketItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -86,5 +92,51 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
     @Override
     public void onBroken(Level level, BlockPos origin) {
         super.onBroken(level, origin);
+    }
+
+    @Override
+    public boolean onClicked(Level level, BlockPos clickedBlock, BlockPos clickedPos, InteractionHand interactionHand, Player player) {
+        if (player == null || level.isClientSide) return true;
+
+        if (this.valvePositions.contains(clickedBlock)) {
+            return false;
+        }
+
+        ItemStack heldItem = player.getItemInHand(interactionHand);
+
+        // Try inserting fluid from a full bucket
+        if (heldItem.getItem() instanceof BucketItem bucketItem) {
+            Fluid bucketFluid = ((BucketItemAccessor) bucketItem).getFluid();
+
+            if (!bucketFluid.isSame(Fluids.EMPTY)) {
+                if (this.storedData.amount() == 0 || this.storedData.fluid().isSame(bucketFluid)) {
+                    if (this.tryInsert(new FluidContent(bucketFluid, 1000), false) == 1000) {
+                        if (!player.isCreative()) {
+                            player.setItemInHand(interactionHand, new ItemStack(Items.BUCKET));
+                        }
+                    }
+                }
+                return true;
+            }
+        }
+
+        // Try extracting fluid into an empty bucket
+        if (heldItem.is(Items.BUCKET)) {
+            FluidContent stored = this.storedData;
+
+            if (stored.amount() >= 1000 && stored.fluid().getBucket() != Items.BUCKET) {
+                ItemStack fullBucket = new ItemStack(stored.fluid().getBucket());
+
+                this.tryExtract(1000, false);
+
+                if (!player.isCreative()) {
+                    heldItem.shrink(1);
+                }
+                if (!player.getInventory().add(fullBucket)) {
+                    player.drop(fullBucket, false);
+                }
+            }
+        }
+        return true;
     }
 }
