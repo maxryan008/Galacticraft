@@ -30,7 +30,7 @@ public class MultiblockRegistry {
         while (it.hasNext()) {
             FormedMultiblockInstance instance = it.next();
             if (instance.contains(origin)) {
-                if (!ShellScanner.isValidShell(level, instance.min(), instance.max(), instance.shell().rules)) {
+                if (!ShellScanner.isValidShell(level, instance.min(), instance.max(), instance.shell().rules).valid()) {
                     instance.shell().onBroken(level, origin);
                     it.remove();
                 }

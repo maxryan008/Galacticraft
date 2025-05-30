@@ -73,7 +73,7 @@ public class ValveBlockEntity extends BlockEntity {
     }
 
     public Storage<FluidVariant> getFluidStorage(Direction side) {
-        if (mode != ValveMode.INPUT || multiblock == null) return null;
+        if (multiblock == null) return null;
 
         if (multiblock instanceof FluidTankMultiblock fluidTank) {
             return new Storage<>() {

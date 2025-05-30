@@ -32,7 +32,7 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
     }
 
     @Override
-    public void onFormed(Level level, BlockPos min, BlockPos max) {
+    public void onFormed(Level level, BlockPos min, BlockPos max, List<BlockPos> valves) {
         int sizeX = max.getX() - min.getX() + 1;
         int sizeY = max.getY() - min.getY() + 1;
         int sizeZ = max.getZ() - min.getZ() + 1;
@@ -40,7 +40,7 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         int interiorBlocks = Math.max(0, (sizeX - 2)) * Math.max(0, (sizeY - 2)) * Math.max(0, (sizeZ - 2));
         this.maxCapacity = interiorBlocks * DEFAULT_MB_PER_BLOCK;
 
-        System.out.println("Tank formed with max capacity: " + maxCapacity + " mB");
+        super.onFormed(level, min, max, valves);
     }
 
     public int getMaxCapacity() {
@@ -81,5 +81,10 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         }
 
         return canInsert;
+    }
+
+    @Override
+    public void onBroken(Level level, BlockPos origin) {
+        super.onBroken(level, origin);
     }
 }

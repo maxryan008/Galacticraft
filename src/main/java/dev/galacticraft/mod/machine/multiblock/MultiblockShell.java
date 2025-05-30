@@ -3,6 +3,7 @@ package dev.galacticraft.mod.machine.multiblock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public abstract class MultiblockShell {
@@ -34,9 +35,9 @@ public abstract class MultiblockShell {
                                 if (min.getX() <= origin.getX() && max.getX() >= origin.getX()
                                         && min.getY() <= origin.getY() && max.getY() >= origin.getY()
                                         && min.getZ() <= origin.getZ() && max.getZ() >= origin.getZ()) {
-
-                                    if (ShellScanner.isValidShell(level, min, max, rules)) {
-                                        onFormed(level, min, max);
+                                    ShellScanner.ValidShell shell = ShellScanner.isValidShell(level, min, max, rules);
+                                    if (shell.valid()) {
+                                        onFormed(level, min, max, shell.valves());
                                         return min;
                                     }
                                 }
@@ -49,6 +50,6 @@ public abstract class MultiblockShell {
         return null;
     }
 
-    public abstract void onFormed(Level level, BlockPos min, BlockPos max);
+    public abstract void onFormed(Level level, BlockPos min, BlockPos max, List<BlockPos> valves);
     public abstract void onBroken(Level level, BlockPos origin);
 }
