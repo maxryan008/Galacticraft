@@ -6,17 +6,16 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 public class MultiblockRegistry {
-    public static final FluidTankMultiblock FLUID_TANK = new FluidTankMultiblock();
-
-    private static final List<MultiblockShell> REGISTERED = new ArrayList<>();
+    private static final List<Supplier<MultiblockShell>> REGISTERED = new ArrayList<>();
 
     // Formed instances stored per dimension
     private static final Map<ResourceKey<Level>, Set<FormedMultiblockInstance>> ACTIVE_INSTANCES = new HashMap<>();
 
-    public static void register(MultiblockShell multiblock) {
-        REGISTERED.add(multiblock);
+    public static void register(Supplier<MultiblockShell> supplier) {
+        REGISTERED.add(supplier);
     }
 
     public static void triggerCheck(Level level, BlockPos origin) {
@@ -38,7 +37,8 @@ public class MultiblockRegistry {
         }
 
         // Attempt to form new structures at this location
-        for (MultiblockShell shell : REGISTERED) {
+        for (Supplier<MultiblockShell> shellSupplier : REGISTERED) {
+            MultiblockShell shell = shellSupplier.get();
             BlockPos formedMin = shell.tryFormAndGetMin(level, origin);
             if (formedMin != null) {
                 BlockPos formedMax = formedMin.offset(shell.maxX - 1, shell.maxY - 1, shell.maxZ - 1);
@@ -53,6 +53,6 @@ public class MultiblockRegistry {
     }
 
     public static void init() {
-        register(FLUID_TANK);
+        register(FluidTankMultiblock::new);
     }
 }

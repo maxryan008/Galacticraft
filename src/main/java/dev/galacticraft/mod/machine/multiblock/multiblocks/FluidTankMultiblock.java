@@ -38,6 +38,11 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
     }
 
     @Override
+    public FluidTankMultiblock newInstance() {
+        return new FluidTankMultiblock();
+    }
+
+    @Override
     public void onFormed(Level level, BlockPos min, BlockPos max, List<BlockPos> valves) {
         int sizeX = max.getX() - min.getX() + 1;
         int sizeY = max.getY() - min.getY() + 1;

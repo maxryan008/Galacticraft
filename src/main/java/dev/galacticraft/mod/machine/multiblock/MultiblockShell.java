@@ -21,6 +21,8 @@ public abstract class MultiblockShell {
         this.rules = rules;
     }
 
+    public abstract MultiblockShell newInstance();
+
     public BlockPos tryFormAndGetMin(Level level, BlockPos origin) {
         int halfX = maxX / 2, halfY = maxY / 2, halfZ = maxZ / 2;
 
