@@ -1,6 +1,7 @@
 package dev.galacticraft.mod.machine.multiblock.multiblocks;
 
 import dev.galacticraft.mod.content.GCBlocks;
+import dev.galacticraft.mod.machine.multiblock.MultiblockShell;
 import dev.galacticraft.mod.machine.multiblock.ShellBlockRule;
 import dev.galacticraft.mod.machine.multiblock.ShellComponent;
 import dev.galacticraft.mod.mixin.BucketItemAccessor;
@@ -143,5 +144,13 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
             }
         }
         return true;
+    }
+
+    @Override
+    public void copyFrom(MultiblockShell other) {
+        if (other instanceof FluidTankMultiblock tank) {
+            this.storedData = tank.storedData;
+            this.maxCapacity = tank.maxCapacity;
+        }
     }
 }

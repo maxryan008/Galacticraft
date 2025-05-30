@@ -14,6 +14,8 @@ public class MultiblockRegistry {
     // Formed instances stored per dimension
     private static final Map<ResourceKey<Level>, Set<FormedMultiblockInstance>> ACTIVE_INSTANCES = new HashMap<>();
 
+    private static final Map<ResourceKey<Level>, Map<BlockRegionKey, FormedMultiblockInstance>> LAST_KNOWN_INSTANCES = new HashMap<>();
+
     public static void register(Supplier<MultiblockShell> supplier) {
         REGISTERED.add(supplier);
     }
@@ -21,8 +23,10 @@ public class MultiblockRegistry {
     public static void triggerCheck(Level level, BlockPos origin) {
         ResourceKey<Level> dimension = level.dimension();
 
-        // Get or create instance set for this dimension
         Set<FormedMultiblockInstance> instances = ACTIVE_INSTANCES.computeIfAbsent(dimension, k -> new HashSet<>());
+        Map<BlockRegionKey, FormedMultiblockInstance> lastKnown = LAST_KNOWN_INSTANCES.computeIfAbsent(dimension, k -> new HashMap<>());
+
+        BlockRegionKey brokenKey = null;
 
         // Break existing structures if invalid
         Iterator<FormedMultiblockInstance> it = instances.iterator();
@@ -31,18 +35,39 @@ public class MultiblockRegistry {
             if (instance.contains(origin)) {
                 if (!ShellScanner.isValidShell(level, instance.min(), instance.max(), instance.shell().rules).valid()) {
                     instance.shell().onBroken(level, origin);
+
+                    // Save last known instance for possible restoration
+                    brokenKey = new BlockRegionKey(instance.min(), instance.max());
+                    lastKnown.put(brokenKey, instance);
+
                     it.remove();
                 }
             }
         }
 
+        boolean structureReformed = false;
+
         // Attempt to form new structures at this location
         for (Supplier<MultiblockShell> shellSupplier : REGISTERED) {
             MultiblockShell shell = shellSupplier.get();
-            BlockPos formedMin = shell.tryFormAndGetMin(level, origin);
-            if (formedMin != null) {
-                BlockPos formedMax = formedMin.offset(shell.maxX - 1, shell.maxY - 1, shell.maxZ - 1);
-                instances.add(new FormedMultiblockInstance(shell, formedMin, formedMax));
+            MultiblockShell.MultiblockFormResult result = shell.tryForm(level, origin);
+            if (result != null) {
+                BlockPos formedMax = result.min().offset(result.xSize() - 1, result.ySize() - 1, result.zSize() - 1);
+                BlockRegionKey key = new BlockRegionKey(result.min(), formedMax);
+
+                FormedMultiblockInstance restored = lastKnown.remove(key);
+                FormedMultiblockInstance newInstance = new FormedMultiblockInstance(shell, result.min(), formedMax);
+
+                if (restored != null
+                        && restored.shell().getClass() == shell.getClass()
+                        && restored.min() != null && restored.max() != null
+                        && restored.min().equals(result.min())
+                        && restored.max().equals(formedMax)) {
+                    shell.copyFrom(restored.shell());
+                }
+
+                getActiveInstances(level).add(newInstance);
+                structureReformed = true;
                 break;
             }
         }
@@ -54,5 +79,15 @@ public class MultiblockRegistry {
 
     public static void init() {
         register(FluidTankMultiblock::new);
+    }
+
+    public static boolean isActive(Level level, BlockPos pos) {
+        for (FormedMultiblockInstance activeInstance : getActiveInstances(level)) {
+            if (activeInstance.contains(pos)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
