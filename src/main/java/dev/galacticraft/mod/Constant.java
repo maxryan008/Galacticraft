@@ -244,6 +244,9 @@ public interface Constant {
         String CRASHED_PROBE_BLOCK = "crashed_probe";
         String BOSS_SPAWNER = "boss_spawner";
 
+        // Multiblock parts
+        String VALVE = "valve";
+
         // Moon Cheese
         String MOON_CHEESE_BLOCK = "moon_cheese_block";
         String MOON_CHEESE_LOG = "moon_cheese_log";

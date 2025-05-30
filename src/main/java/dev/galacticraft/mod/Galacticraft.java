@@ -35,6 +35,7 @@ import dev.galacticraft.mod.data.OxygenBlockDataManager;
 import dev.galacticraft.mod.events.GCEventHandlers;
 import dev.galacticraft.mod.lookup.GCApiLookupProviders;
 import dev.galacticraft.mod.machine.GCMachineStatuses;
+import dev.galacticraft.mod.machine.multiblock.MultiblockRegistry;
 import dev.galacticraft.mod.network.GCPackets;
 import dev.galacticraft.mod.network.GCServerPacketReceivers;
 import dev.galacticraft.mod.particle.GCParticleTypes;
@@ -113,6 +114,7 @@ public class Galacticraft implements ModInitializer {
         GCStats.register();
         GCCelestialHandlers.register();
         GCEventHandlers.init();
+        MultiblockRegistry.init();
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(OxygenBlockDataManager.INSTANCE);
         Constant.LOGGER.info("Initialization complete. (Took {}ms).", System.currentTimeMillis() - startInitTime);
     }

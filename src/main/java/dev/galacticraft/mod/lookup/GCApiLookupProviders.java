@@ -30,8 +30,10 @@ import dev.galacticraft.mod.api.wire.Wire;
 import dev.galacticraft.mod.content.GCBlockEntityTypes;
 import dev.galacticraft.mod.content.item.GCItems;
 import dev.galacticraft.mod.content.item.OxygenTankItem;
+import dev.galacticraft.mod.machine.multiblock.ValveBlockEntity;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import team.reborn.energy.api.EnergyStorage;
 
@@ -82,6 +84,16 @@ public class GCApiLookupProviders {
             if (direction == null || !((Wire) blockEntity).canConnect(direction)) return null;
             return ((Wire) blockEntity).getInsertable();
         }, WIRE_TYPES);
+
+        //MULTIBLOCK VALVE
+        FluidStorage.SIDED.registerForBlockEntities((blockEntity, direction) -> {
+                    if (blockEntity instanceof ValveBlockEntity valve) {
+                        return valve.getFluidStorage(direction);
+                    }
+                    return null;
+                },
+                GCBlockEntityTypes.VALVE
+        );
 
         FluidStorage.ITEM.registerForItems((itemStack, context) -> {
             long capacity = ((OxygenTankItem) itemStack.getItem()).capacity;

@@ -1,0 +1,85 @@
+package dev.galacticraft.mod.machine.multiblock.multiblocks;
+
+import dev.galacticraft.mod.content.GCBlocks;
+import dev.galacticraft.mod.machine.multiblock.MultiblockShell;
+import dev.galacticraft.mod.machine.multiblock.ShellBlockRule;
+import dev.galacticraft.mod.machine.multiblock.ShellComponent;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
+
+import java.util.List;
+
+public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTankMultiblock.FluidContent> {
+    public static final int DEFAULT_MB_PER_BLOCK = 1000; // configurable if needed
+
+    private int maxCapacity = 0; // set onFormed()
+
+    public record FluidContent(Fluid fluid, int amount) {
+        public static final FluidContent EMPTY = new FluidContent(Fluids.EMPTY, 0);
+    }
+
+    public FluidTankMultiblock() {
+        super(10, 10, 10, List.of(
+                new ShellBlockRule(ShellComponent.CORNER, s -> s.is(Blocks.IRON_BLOCK)),
+                new ShellBlockRule(ShellComponent.EDGE, s -> s.is(Blocks.IRON_BLOCK)),
+                new ShellBlockRule(ShellComponent.FACE, s -> s.is(Blocks.IRON_BLOCK) || s.is(Blocks.GLASS) || s.is(GCBlocks.VALVE)),
+                new ShellBlockRule(ShellComponent.INTERIOR, BlockState::isAir)
+        ), () -> FluidContent.EMPTY);
+    }
+
+    @Override
+    public void onFormed(Level level, BlockPos min, BlockPos max) {
+        int sizeX = max.getX() - min.getX() + 1;
+        int sizeY = max.getY() - min.getY() + 1;
+        int sizeZ = max.getZ() - min.getZ() + 1;
+
+        int interiorBlocks = Math.max(0, (sizeX - 2)) * Math.max(0, (sizeY - 2)) * Math.max(0, (sizeZ - 2));
+        this.maxCapacity = interiorBlocks * DEFAULT_MB_PER_BLOCK;
+
+        System.out.println("Tank formed with max capacity: " + maxCapacity + " mB");
+    }
+
+    public int getMaxCapacity() {
+        return maxCapacity;
+    }
+
+    @Override
+    public FluidContent tryExtract(int maxAmount, boolean simulate) {
+        if (storedData.amount() == 0) return FluidContent.EMPTY;
+
+        int toExtract = Math.min(maxAmount, storedData.amount());
+        if (!simulate) {
+            storedData = new FluidContent(storedData.fluid(), storedData.amount() - toExtract);
+        }
+
+        return new FluidContent(storedData.fluid(), toExtract);
+    }
+
+    @Override
+    public int tryInsert(FluidContent value, boolean simulate) {
+        if (value.amount() <= 0) return 0;
+
+        // If currently not holding a fluid or amount is zero, accept any new fluid
+        if (storedData.amount() == 0 || storedData.fluid() == Fluids.EMPTY) {
+            int toInsert = Math.min(value.amount(), maxCapacity);
+            if (!simulate && toInsert > 0) {
+                storedData = new FluidContent(value.fluid(), toInsert);
+            }
+            return toInsert;
+        }
+
+        // Otherwise, only allow same fluid type
+        if (!storedData.fluid().isSame(value.fluid())) return 0;
+
+        int canInsert = Math.min(value.amount(), maxCapacity - storedData.amount());
+        if (!simulate && canInsert > 0) {
+            storedData = new FluidContent(storedData.fluid(), storedData.amount() + canInsert);
+        }
+
+        return canInsert;
+    }
+}

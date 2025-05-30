@@ -235,6 +235,9 @@ public class GCTranslationProvider extends TranslationProvider {
         this.block(GCBlocks.ROCKET_WORKBENCH, "Rocket Workbench");
         this.block(GCBlocks.PARACHEST, "Parachest");
 
+        // MULTIBLOCK PARTS
+        this.block(GCBlocks.VALVE, "Valve");
+
         // LIGHT PANELS
         this.block(GCBlocks.SQUARE_LIGHT_PANEL, "Light Panel (Square)");
         this.block(GCBlocks.SPOTLIGHT_LIGHT_PANEL, "Light Panel (Spotlight)");

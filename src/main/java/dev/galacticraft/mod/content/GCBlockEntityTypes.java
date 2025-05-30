@@ -31,6 +31,7 @@ import dev.galacticraft.mod.content.block.entity.networked.GlassFluidPipeBlockEn
 import dev.galacticraft.mod.content.block.entity.networked.WireBlockEntity;
 import dev.galacticraft.mod.content.block.entity.networked.WireWalkwayBlockEntity;
 import dev.galacticraft.mod.content.block.special.launchpad.LaunchPadBlockEntity;
+import dev.galacticraft.mod.machine.multiblock.ValveBlockEntity;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -75,6 +76,9 @@ public class GCBlockEntityTypes {
     public static final BlockEntityType<FuelLoaderBlockEntity> FUEL_LOADER = BlockEntityType.Builder.of(FuelLoaderBlockEntity::new, GCBlocks.FUEL_LOADER).build();
     public static final BlockEntityType<ParachestBlockEntity> PARACHEST = BlockEntityType.Builder.of(ParachestBlockEntity::new, GCBlocks.PARACHEST).build();
 
+    // MULTIBLOCK PARTS
+    public static final BlockEntityType<ValveBlockEntity> VALVE = BlockEntityType.Builder.of(ValveBlockEntity::new, GCBlocks.VALVE).build();
+
     // MISC
     public static final BlockEntityType<SolarPanelPartBlockEntity> SOLAR_PANEL_PART = BlockEntityType.Builder.of(SolarPanelPartBlockEntity::new, GCBlocks.SOLAR_PANEL_PART).build();
     public static final BlockEntityType<CryogenicChamberBlockEntity> CRYOGENIC_CHAMBER = BlockEntityType.Builder.of(CryogenicChamberBlockEntity::new, GCBlocks.CRYOGENIC_CHAMBER).build();
@@ -116,6 +120,8 @@ public class GCBlockEntityTypes {
         Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Constant.id(Constant.Block.OXYGEN_STORAGE_MODULE), OXYGEN_STORAGE_MODULE);
         Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Constant.id(Constant.Block.FUEL_LOADER), FUEL_LOADER);
         Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Constant.id(Constant.Block.PARACHEST), PARACHEST);
+
+        Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Constant.id(Constant.Block.VALVE), VALVE);
 
         Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Constant.id(Constant.Block.ROCKET_LAUNCH_PAD), LAUNCH_PAD);
         Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Constant.id(Constant.Block.SOLAR_PANEL_PART), SOLAR_PANEL_PART);

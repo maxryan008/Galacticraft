@@ -233,6 +233,9 @@ public class GCCreativeModeTabs {
                 output.accept(CRYOGENIC_CHAMBER);
                 output.accept(PLAYER_TRANSPORT_TUBE);
 
+                // MULTIBLOCK PARTS
+                output.accept(VALVE);
+
                 for (DyeColor color : GCBlockRegistry.COLOR_ORDER) {
                     ItemStack stack = new ItemStack(PARACHEST);
                     stack.set(DataComponents.BASE_COLOR, color);

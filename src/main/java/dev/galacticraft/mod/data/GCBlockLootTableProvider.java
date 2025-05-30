@@ -307,6 +307,10 @@ public class GCBlockLootTableProvider extends FabricBlockLootTableProvider {
         this.add(GCBlocks.AIR_LOCK_SEAL, noDrop());
 
         this.add(GCBlocks.PARACHEST, createParachestDrop(GCBlocks.PARACHEST));
+
+        // MULTIBLOCK PARTS
+
+        this.dropSelf(GCBlocks.VALVE);
     }
 
     private LootTable.Builder createLaunchPadTable(Block block) {
