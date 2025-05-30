@@ -6,6 +6,7 @@ import dev.galacticraft.mod.machine.multiblock.ShellBlockRule;
 import dev.galacticraft.mod.machine.multiblock.ShellComponent;
 import dev.galacticraft.mod.mixin.BucketItemAccessor;
 import dev.galacticraft.mod.mixin.BucketItemMixin;
+import mezz.jei.api.fabric.ingredients.fluids.JeiFluidIngredient;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -24,6 +25,10 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
     public static final int DEFAULT_MB_PER_BLOCK = 1000; // configurable if needed
 
     private int maxCapacity = 0; // set onFormed()
+
+    public FluidContent getStored() {
+        return this.storedData;
+    }
 
     public record FluidContent(Fluid fluid, int amount) {
         public static final FluidContent EMPTY = new FluidContent(Fluids.EMPTY, 0);

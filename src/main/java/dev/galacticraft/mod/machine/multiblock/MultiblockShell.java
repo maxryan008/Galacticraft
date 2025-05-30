@@ -1,5 +1,6 @@
 package dev.galacticraft.mod.machine.multiblock;
 
+import dev.galacticraft.mod.content.GCBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -7,6 +8,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public abstract class MultiblockShell {
@@ -25,7 +27,7 @@ public abstract class MultiblockShell {
 
     public abstract MultiblockShell newInstance();
 
-    public record MultiblockFormResult(BlockPos min, int xSize, int ySize, int zSize) {}
+    public record MultiblockFormResult(BlockPos min, int xSize, int ySize, int zSize, List<BlockPos> valves) {}
 
     public MultiblockFormResult tryForm(Level level, BlockPos origin) {
         ShellComponent role = testBlock(level, origin);
@@ -152,37 +154,44 @@ public abstract class MultiblockShell {
         BlockPos maxXMinZLowerCorner = origin.offset(x,y - 1,z);
         if (MultiblockRegistry.isActive(level, origin.offset(x,y - 1,z))) return null;
         //found all lower face corners. now determine if face is valid
-        if (!isValidFace(level, minimumCorner, maxXZLowerCorner, minXMaxZLowerCorner, maxXMinZLowerCorner, this.rules)) return null;
+        ValidSlice face = isValidFace(level, minimumCorner, maxXZLowerCorner, minXMaxZLowerCorner, maxXMinZLowerCorner, this.rules);
+        if (!face.valid()) return null;
+        List<BlockPos> valves = new ArrayList<>(face.valves());
         x = 0;
         y = 0;
         z = 0;
-        boolean found = false;
+        ValidSlice found = ValidSlice.invalid();
         boolean exit = false;
-        while (!found && !exit) {
+        while (!found.valid() && !exit) {
             y += 1;
             found = isValidFace(level, minimumCorner.offset(x,y,z), maxXZLowerCorner.offset(x,y,z), minXMaxZLowerCorner.offset(x,y,z), maxXMinZLowerCorner.offset(x,y,z), this.rules);
-            if (!isValidSlice(level, minimumCorner.offset(x,y,z), maxXZLowerCorner.offset(x,y,z), rules)) exit = true; //exit while loop and try other direction
+            ValidSlice slice = isValidSlice(level, minimumCorner.offset(x,y,z), maxXZLowerCorner.offset(x,y,z), rules);
+            valves.addAll(slice.valves());
+            if (!slice.valid()) exit = true; //exit while loop and try other direction
             if (y > maxY) {
                 exit = true;
             }
         }
-        if (exit && !found) {
+        if (exit && !found.valid()) {
             y = 0;
-            while (!found) {
+            while (!found.valid()) {
                 y -= 1;
                 found = isValidFace(level, minimumCorner.offset(x,y,z), maxXZLowerCorner.offset(x,y,z), minXMaxZLowerCorner.offset(x,y,z), maxXMinZLowerCorner.offset(x,y,z), this.rules);
-                if (!isValidSlice(level, minimumCorner.offset(x,y,z), maxXZLowerCorner.offset(x,y,z), rules)) return null; //no valid multiblock
+                ValidSlice slice = isValidSlice(level, minimumCorner.offset(x,y,z), maxXZLowerCorner.offset(x,y,z), rules);
+                valves.addAll(slice.valves());
+                if (!slice.valid()) return null; //no valid multiblock
                 if (y < -maxY) {
                     return null;
                 }
             }
         }
+        valves.addAll(found.valves());
         int xSize = maxXZLowerCorner.getX() - minimumCorner.getX() + 1;
         int ySize = Math.abs(y) + 1;
         int zSize = maxXZLowerCorner.getZ() - minimumCorner.getZ() + 1;
         System.out.println("X: " + xSize + " Y: " + ySize + " Z: " + zSize);
-        onFormed(level, minimumCorner, minimumCorner.offset(xSize - 1, ySize - 1, zSize - 1), List.of());
-        return new MultiblockFormResult(minimumCorner, xSize, ySize, zSize);
+        onFormed(level, minimumCorner, minimumCorner.offset(xSize - 1, ySize - 1, zSize - 1), valves);
+        return new MultiblockFormResult(minimumCorner, xSize, ySize, zSize, valves);
     }
 
     public ShellComponent testBlock(Level level, BlockPos pos) {
@@ -197,7 +206,17 @@ public abstract class MultiblockShell {
         return null;
     }
 
-    public static boolean isValidFace(Level level, BlockPos p1, BlockPos p2, BlockPos p3, BlockPos p4, List<ShellBlockRule> rules) {
+    public record ValidSlice(boolean valid, List<BlockPos> valves) {
+        public static ValidSlice invalid() {
+            return new ValidSlice(false, List.of());
+        }
+
+        public static ValidSlice valid(List<BlockPos> valves) {
+            return new ValidSlice(true, valves);
+        }
+    }
+
+    public static ValidSlice isValidFace(Level level, BlockPos p1, BlockPos p2, BlockPos p3, BlockPos p4, List<ShellBlockRule> rules) {
         BlockPos min = new BlockPos(
                 Math.min(Math.min(p1.getX(), p2.getX()), Math.min(p3.getX(), p4.getX())),
                 Math.min(Math.min(p1.getY(), p2.getY()), Math.min(p3.getY(), p4.getY())),
@@ -214,7 +233,9 @@ public abstract class MultiblockShell {
         if (min.getX() == max.getX()) fixedAxis = Direction.Axis.X;
         else if (min.getY() == max.getY()) fixedAxis = Direction.Axis.Y;
         else if (min.getZ() == max.getZ()) fixedAxis = Direction.Axis.Z;
-        else return false; // Not a flat face
+        else return ValidSlice.invalid(); // Not a flat face
+
+        List<BlockPos> valves = new ArrayList<>();
 
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int y = min.getY(); y <= max.getY(); y++) {
@@ -222,15 +243,19 @@ public abstract class MultiblockShell {
                     BlockPos pos = new BlockPos(x, y, z);
                     ShellComponent expected = classifyShellComponent(pos, min, max);
 
-                    if (!isValidShellComponent(level.getBlockState(pos), expected, rules)) return false;
+                    BlockState blockState = level.getBlockState(pos);
+                    if (!isValidShellComponent(blockState, expected, rules)) return ValidSlice.invalid();
+                    if (blockState.is(GCBlocks.VALVE)) {
+                        valves.add(pos);
+                    }
                 }
             }
         }
 
-        return true;
+        return ValidSlice.valid(valves);
     }
 
-    public static boolean isValidSlice(Level level, BlockPos min, BlockPos max, List<ShellBlockRule> rules) {
+    public static ValidSlice isValidSlice(Level level, BlockPos min, BlockPos max, List<ShellBlockRule> rules) {
         ShellBlockRule interiorRule = rules.stream()
                 .filter(rule -> rule.component() == ShellComponent.INTERIOR)
                 .findFirst()
@@ -243,28 +268,33 @@ public abstract class MultiblockShell {
                 .filter(rule -> rule.component() == ShellComponent.EDGE)
                 .findFirst()
                 .orElseThrow();
+        List<BlockPos> valves = new ArrayList<>();
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int y = min.getY(); y <= max.getY(); y++) {
                 for (int z = min.getZ(); z <= max.getZ(); z++) {
                     BlockPos pos = new BlockPos(x, y, z);
                     ShellComponent expected = classifySliceComponent(pos, min, max);
 
+                    BlockState blockState = level.getBlockState(pos);
                     if (expected == ShellComponent.INTERIOR) {
-                        if (!interiorRule.predicate().test(level.getBlockState(pos))) return false;
+                        if (!interiorRule.predicate().test(blockState)) return ValidSlice.invalid();
                     }
                     else if (expected == ShellComponent.FACE) {
-                        if (!faceRule.predicate().test(level.getBlockState(pos))) return false;
+                        if (!faceRule.predicate().test(blockState)) return ValidSlice.invalid();
                     }
                     else if (expected == ShellComponent.EDGE) {
-                        if (!edge.predicate().test(level.getBlockState(pos))) return false;
+                        if (!edge.predicate().test(blockState)) return ValidSlice.invalid();
                     } else {
                         throw new IllegalStateException("Unknown shell component: " + expected);
+                    }
+                    if (blockState.is(GCBlocks.VALVE)) {
+                        valves.add(pos);
                     }
                 }
             }
         }
 
-        return true;
+        return ValidSlice.valid(valves);
     }
 
     private static ShellComponent classifyShellComponent(BlockPos pos, BlockPos min, BlockPos max) {
