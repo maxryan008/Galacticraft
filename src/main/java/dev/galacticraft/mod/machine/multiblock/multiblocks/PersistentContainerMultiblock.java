@@ -55,6 +55,6 @@ public abstract class PersistentContainerMultiblock<T> extends MultiblockShell {
         this.storedData = defaultSupplier.get();
     }
 
-    public abstract T tryExtract(int maxAmount, boolean simulate);
-    public abstract int tryInsert(T value, boolean simulate);
+    public abstract T tryExtract(long maxAmount, boolean simulate);
+    public abstract long tryInsert(T value, boolean simulate);
 }

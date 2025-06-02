@@ -73,7 +73,7 @@ public class ValveBlockEntity extends BlockEntity {
                     if (!resource.equals(incoming) && !resource.getFluid().equals(Fluids.EMPTY)) return 0;
                     if (self.mode != ValveMode.INPUT) return 0;
 
-                    int accepted = fluidTank.tryInsert(new FluidTankMultiblock.FluidContent(incoming.getFluid(), (int) maxAmount), true);
+                    long accepted = fluidTank.tryInsert(new FluidTankMultiblock.FluidContent(incoming.getFluid(), maxAmount), true);
 
                     if (accepted > 0) {
                         // Delay actual mutation until commit
@@ -92,7 +92,7 @@ public class ValveBlockEntity extends BlockEntity {
                     if (!resource.equals(outgoing)) return 0;
                     if (self.mode != ValveMode.OUTPUT) return 0;
 
-                    int extracted = fluidTank.tryExtract((int) maxAmount, true).amount();
+                    long extracted = fluidTank.tryExtract(maxAmount, true).amount();
 
                     if (extracted > 0) {
                         transaction.addCloseCallback((ctx, result) -> {

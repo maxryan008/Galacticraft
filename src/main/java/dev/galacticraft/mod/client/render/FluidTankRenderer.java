@@ -48,13 +48,18 @@ public class FluidTankRenderer {
             BlockPos min = instance.min();
             BlockPos max = instance.max();
 
-            int fluidAmount = tank.getStored().amount();
-            int maxAmount = tank.getMaxCapacity();
+            long fluidAmount = tank.getStored().amount();
+            long maxAmount = tank.getMaxCapacity();
             float fillRatio = Mth.clamp((float) fluidAmount / maxAmount, 0.0f, 1.0f);
 
             FluidState fluidState = tank.getStored().fluid().defaultFluidState();
             FluidRenderHandler handler = FluidRenderHandlerRegistry.INSTANCE.get(fluidState.getType());
-            TextureAtlasSprite sprite = handler.getFluidSprites(level, min, fluidState)[0];
+            if (handler == null) continue; // Skip rendering if no handler
+
+            TextureAtlasSprite[] sprites = handler.getFluidSprites(level, min, fluidState);
+            if (sprites == null || sprites.length == 0 || sprites[0] == null) continue; // Skip rendering if no valid sprite
+
+            TextureAtlasSprite sprite = sprites[0];
 
             RenderType renderType = RenderType.translucent();
             VertexConsumer consumer = bufferSource.getBuffer(renderType);

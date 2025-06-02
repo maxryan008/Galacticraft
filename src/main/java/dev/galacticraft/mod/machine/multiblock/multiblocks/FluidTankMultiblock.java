@@ -5,6 +5,7 @@ import dev.galacticraft.mod.machine.multiblock.MultiblockShell;
 import dev.galacticraft.mod.machine.multiblock.ShellBlockRule;
 import dev.galacticraft.mod.machine.multiblock.ShellComponent;
 import dev.galacticraft.mod.mixin.BucketItemAccessor;
+import dev.galacticraft.mod.util.FluidUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,9 +23,8 @@ import net.minecraft.world.level.material.Fluids;
 import java.util.List;
 
 public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTankMultiblock.FluidContent> {
-    public static final int DEFAULT_MB_PER_BLOCK = 1000; // configurable if needed
 
-    private int maxCapacity = 0; // set onFormed()
+    private long maxCapacity = 0; // set onFormed()
 
     public FluidContent getStored() {
         return this.storedData;
@@ -34,7 +34,7 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         this.storedData = this.storedData.modifyStoredAmount(change);
     }
 
-    public record FluidContent(Fluid fluid, int amount) {
+    public record FluidContent(Fluid fluid, long amount) {
         public static final FluidContent EMPTY = new FluidContent(Fluids.EMPTY, 0);
 
         public FluidContent modifyStoredAmount(int change) {
@@ -63,20 +63,20 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         int sizeZ = max.getZ() - min.getZ() + 1;
 
         int interiorBlocks = Math.max(0, (sizeX - 2)) * Math.max(0, (sizeY - 2)) * Math.max(0, (sizeZ - 2));
-        this.maxCapacity = interiorBlocks * DEFAULT_MB_PER_BLOCK;
+        this.maxCapacity = FluidUtil.bucketsToDroplets(interiorBlocks);
 
         super.onFormed(level, min, max, valves);
     }
 
-    public int getMaxCapacity() {
+    public long getMaxCapacity() {
         return maxCapacity;
     }
 
     @Override
-    public FluidContent tryExtract(int maxAmount, boolean simulate) {
+    public FluidContent tryExtract(long maxAmount, boolean simulate) {
         if (storedData.amount() == 0) return FluidContent.EMPTY;
 
-        int toExtract = Math.min(maxAmount, storedData.amount());
+        long toExtract = Math.min(maxAmount, storedData.amount());
         if (!simulate) {
             storedData = new FluidContent(storedData.fluid(), storedData.amount() - toExtract);
         }
@@ -85,12 +85,12 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
     }
 
     @Override
-    public int tryInsert(FluidContent value, boolean simulate) {
+    public long tryInsert(FluidContent value, boolean simulate) {
         if (value.amount() <= 0) return 0;
 
         // If currently not holding a fluid or amount is zero, accept any new fluid
         if (storedData.amount() == 0 || storedData.fluid() == Fluids.EMPTY) {
-            int toInsert = Math.min(value.amount(), maxCapacity);
+            long toInsert = Math.min(value.amount(), maxCapacity);
             if (!simulate && toInsert > 0) {
                 storedData = new FluidContent(value.fluid(), toInsert);
             }
@@ -100,7 +100,7 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         // Otherwise, only allow same fluid type
         if (!storedData.fluid().isSame(value.fluid())) return 0;
 
-        int canInsert = Math.min(value.amount(), maxCapacity - storedData.amount());
+        long canInsert = Math.min(value.amount(), maxCapacity - storedData.amount());
         if (!simulate && canInsert > 0) {
             storedData = new FluidContent(storedData.fluid(), storedData.amount() + canInsert);
         }
@@ -129,7 +129,7 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
 
             if (!bucketFluid.isSame(Fluids.EMPTY)) {
                 if (this.storedData.amount() == 0 || this.storedData.fluid().isSame(bucketFluid)) {
-                    if (this.tryInsert(new FluidContent(bucketFluid, 1000), false) == 1000) {
+                    if (this.tryInsert(new FluidContent(bucketFluid, FluidUtil.bucketsToDroplets(1)), false) == FluidUtil.bucketsToDroplets(1)) {
                         if (!player.isCreative()) {
                             player.setItemInHand(interactionHand, new ItemStack(Items.BUCKET));
                         }
@@ -143,10 +143,10 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         if (heldItem.is(Items.BUCKET)) {
             FluidContent stored = this.storedData;
 
-            if (stored.amount() >= 1000 && stored.fluid().getBucket() != Items.BUCKET) {
+            if (stored.amount() >= FluidUtil.bucketsToDroplets(1) && stored.fluid().getBucket() != Items.BUCKET) {
                 ItemStack fullBucket = new ItemStack(stored.fluid().getBucket());
 
-                this.tryExtract(1000, false);
+                this.tryExtract(FluidUtil.bucketsToDroplets(1), false);
 
                 if (!player.isCreative()) {
                     heldItem.shrink(1);
