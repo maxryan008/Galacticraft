@@ -31,6 +31,7 @@ import dev.galacticraft.mod.Constant;
 import dev.galacticraft.mod.api.block.entity.PipeColor;
 import dev.galacticraft.mod.content.GCBlockRegistry;
 import dev.galacticraft.mod.content.GCBlocks;
+import dev.galacticraft.mod.content.block.GCBlock;
 import dev.galacticraft.mod.content.block.decoration.IronGratingBlock;
 import dev.galacticraft.mod.content.block.environment.CavernousVines;
 import dev.galacticraft.mod.content.block.machine.FuelLoaderBlock;
@@ -39,6 +40,8 @@ import dev.galacticraft.mod.content.block.special.ParachestBlock;
 import dev.galacticraft.mod.content.block.special.RocketWorkbench;
 import dev.galacticraft.mod.content.block.special.launchpad.AbstractLaunchPad;
 import dev.galacticraft.mod.content.item.GCItems;
+import dev.galacticraft.mod.machine.multiblock.ValveBlock;
+import dev.galacticraft.mod.machine.multiblock.ValveMode;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricModelProvider;
 import net.minecraft.core.Direction;
@@ -256,7 +259,7 @@ public class GCModelProvider extends FabricModelProvider {
         generator.createAirLikeBlock(GCBlocks.SOLAR_PANEL_PART, GCItems.BLUE_SOLAR_WAFER);
 
         // MULTIBLOCK PARTS
-        generator.createTrivialCube(GCBlocks.VALVE);
+        createValveBlock(GCBlocks.VALVE, generator);
 
         // MISC MACHINES
 //        generator.createNonTemplateModelBlock(GCBlocks.CRYOGENIC_CHAMBER);
@@ -874,5 +877,32 @@ public class GCModelProvider extends FabricModelProvider {
 
     private static TextureMapping color(ResourceLocation resourceLocation) {
         return new TextureMapping().put(GCTextureSlot.COLOR, resourceLocation);
+    }
+
+    private void createValveBlock(Block valve, BlockModelGenerators generator) {
+        // Valve IN model
+        var inModel = ModelTemplates.CUBE_ALL.createWithSuffix(
+                valve, "_in",
+                TextureMapping.cube(Constant.id("block/valve_in")),
+                generator.modelOutput
+        );
+
+        // Valve OUT model
+        var outModel = ModelTemplates.CUBE_ALL.createWithSuffix(
+                valve, "_out",
+                TextureMapping.cube(Constant.id("block/valve_out")),
+                generator.modelOutput
+        );
+
+        // Blockstate dispatch
+        generator.blockStateOutput.accept(
+                MultiVariantGenerator.multiVariant(valve)
+                        .with(PropertyDispatch.property(ValveBlock.MODE)
+                                .select(ValveMode.INPUT, Variant.variant().with(VariantProperties.MODEL, inModel))
+                                .select(ValveMode.OUTPUT, Variant.variant().with(VariantProperties.MODEL, outModel))
+                        )
+        );
+
+        generator.delegateItemModel(valve, inModel);
     }
 }

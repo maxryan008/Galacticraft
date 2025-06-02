@@ -1,7 +1,10 @@
 {
   "variants": {
-    "": {
-      "model": "galacticraft:block/valve"
+    "mode=input": {
+      "model": "galacticraft:block/valve_in"
+    },
+    "mode=output": {
+      "model": "galacticraft:block/valve_out"
     }
   }
 }
