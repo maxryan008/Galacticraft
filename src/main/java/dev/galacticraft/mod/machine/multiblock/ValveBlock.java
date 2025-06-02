@@ -18,6 +18,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
+import java.util.Objects;
+
 public class ValveBlock extends Block implements EntityBlock {
     public static final EnumProperty<ValveMode> MODE = EnumProperty.create("mode", ValveMode.class);
 
@@ -40,7 +42,9 @@ public class ValveBlock extends Block implements EntityBlock {
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!level.isClientSide) {
             ValveMode mode = state.getValue(MODE);
-            level.setBlock(pos, state.setValue(MODE, mode == ValveMode.INPUT ? ValveMode.OUTPUT : ValveMode.INPUT), 3);
+            mode = mode == ValveMode.INPUT ? ValveMode.OUTPUT : ValveMode.INPUT;
+            ((ValveBlockEntity) Objects.requireNonNull(level.getBlockEntity(pos))).setMode(mode);
+            level.setBlock(pos, state.setValue(MODE, mode), 3);
             player.displayClientMessage(Component.literal("Set mode to: " + mode), true);
         }
         return InteractionResult.SUCCESS;
@@ -48,6 +52,6 @@ public class ValveBlock extends Block implements EntityBlock {
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return type == GCBlockEntityTypes.VALVE ? (lvl, pos, st, be) -> ((ValveBlockEntity) be).tick() : null;
+        return type == GCBlockEntityTypes.VALVE ? (lvl, pos, st, be) -> ((ValveBlockEntity) be).tick(st) : null;
     }
 }

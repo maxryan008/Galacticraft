@@ -88,7 +88,7 @@ public class GCApiLookupProviders {
         //MULTIBLOCK VALVE
         FluidStorage.SIDED.registerForBlockEntities((blockEntity, direction) -> {
                     if (blockEntity instanceof ValveBlockEntity valve) {
-                        return valve.getFluidStorage(direction);
+                        return valve.getFluidStorage();
                     }
                     return null;
                 },

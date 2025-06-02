@@ -1,26 +1,23 @@
 package dev.galacticraft.mod.machine.multiblock;
 
+import com.google.common.base.Predicates;
 import dev.galacticraft.mod.Constant;
-import dev.galacticraft.mod.api.block.entity.PipeColor;
-import dev.galacticraft.mod.api.pipe.Pipe;
-import dev.galacticraft.mod.api.pipe.PipeNetwork;
 import dev.galacticraft.mod.content.GCBlockEntityTypes;
 import dev.galacticraft.mod.machine.multiblock.multiblocks.FluidTankMultiblock;
 import dev.galacticraft.mod.machine.multiblock.multiblocks.PersistentContainerMultiblock;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.entity.TickingBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import net.minecraft.world.level.material.Fluids;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -38,7 +35,7 @@ public class ValveBlockEntity extends BlockEntity {
         this.multiblock = multiblock;
     }
 
-    public void tick() {
+    public void tick(BlockState state) {
         if (this.level.isClientSide || this.mode != ValveMode.OUTPUT || multiblock == null) return;
 
         if (multiblock instanceof FluidTankMultiblock fluidTank) {
@@ -46,21 +43,10 @@ public class ValveBlockEntity extends BlockEntity {
             // this valve behaves like a *source*, not a sink
             FluidTankMultiblock.FluidContent fluid = fluidTank.getStoredData();
             if (fluid.amount() > 0) {
-                try (Transaction tx = Transaction.openOuter()) {
-                    long inserted = 0;
-                    FluidVariant variant = FluidVariant.of(fluid.fluid());
-
-                    for (Direction dir : Constant.Misc.DIRECTIONS) {
-                        Storage<FluidVariant> storage = FluidStorage.SIDED.find(level, worldPosition.relative(dir), dir.getOpposite());
-                        if (storage != null && storage.supportsInsertion()) {
-                            inserted += storage.insert(variant, fluid.amount(), tx);
-                            if (inserted >= fluid.amount()) break;
-                        }
-                    }
-
-                    if (inserted > 0) {
-                        fluidTank.setStoredData(new FluidTankMultiblock.FluidContent(fluid.fluid(), fluid.amount() - (int) inserted));
-                        tx.commit();
+                for (Direction dir : Constant.Misc.DIRECTIONS) {
+                    Storage<FluidVariant> storage = FluidStorage.SIDED.find(level, worldPosition.relative(dir), dir.getOpposite());
+                    if (storage != null && storage.supportsInsertion()) {
+                        System.out.println(StorageUtil.move(this.getFluidStorage(), storage, Predicates.alwaysTrue(), FluidConstants.BUCKET, null));
                     }
                 }
             }
@@ -72,38 +58,100 @@ public class ValveBlockEntity extends BlockEntity {
         return false;
     }
 
-    public Storage<FluidVariant> getFluidStorage(Direction side) {
+    public Storage<FluidVariant> getFluidStorage() {
         if (multiblock == null) return null;
 
         if (multiblock instanceof FluidTankMultiblock fluidTank) {
+            ValveBlockEntity self = this;
+
             return new Storage<>() {
+                final FluidVariant resource = FluidVariant.of(fluidTank.getStored().fluid());
+                final long amount = fluidTank.getStored().amount();
+
                 @Override
-                public long insert(FluidVariant resource, long maxAmount, TransactionContext transaction) {
-                    return fluidTank.tryInsert(new FluidTankMultiblock.FluidContent(resource.getFluid(), (int) maxAmount), false);
+                public long insert(FluidVariant incoming, long maxAmount, TransactionContext transaction) {
+                    if (!resource.equals(incoming) && !resource.getFluid().equals(Fluids.EMPTY)) return 0;
+                    if (self.mode != ValveMode.INPUT) return 0;
+
+                    int accepted = fluidTank.tryInsert(new FluidTankMultiblock.FluidContent(incoming.getFluid(), (int) maxAmount), true);
+
+                    if (accepted > 0) {
+                        // Delay actual mutation until commit
+                        transaction.addCloseCallback((ctx, result) -> {
+                            if (result.wasCommitted()) {
+                                fluidTank.tryInsert(new FluidTankMultiblock.FluidContent(incoming.getFluid(), accepted), false);
+                            }
+                        });
+                    }
+
+                    return accepted;
                 }
 
                 @Override
-                public long extract(FluidVariant resource, long maxAmount, TransactionContext transaction) {
-                    return 0;
+                public long extract(FluidVariant outgoing, long maxAmount, TransactionContext transaction) {
+                    if (!resource.equals(outgoing)) return 0;
+                    if (self.mode != ValveMode.OUTPUT) return 0;
+
+                    int extracted = fluidTank.tryExtract((int) maxAmount, true).amount();
+
+                    if (extracted > 0) {
+                        transaction.addCloseCallback((ctx, result) -> {
+                            if (result.wasCommitted()) {
+                                fluidTank.tryExtract(extracted, false);
+                            }
+                        });
+                    }
+
+                    return extracted;
                 }
 
                 @Override
                 public boolean supportsInsertion() {
-                    return true;
+                    return self.mode == ValveMode.INPUT;
                 }
 
                 @Override
                 public boolean supportsExtraction() {
-                    return false;
+                    return true; // allow connection; return 0 in extract() when mode != OUTPUT
                 }
 
                 @Override
                 public Iterator<StorageView<FluidVariant>> iterator() {
-                    return Collections.emptyIterator();
+                    return Collections.singletonList(new StorageView<FluidVariant>() {
+
+                        @Override
+                        public long extract(FluidVariant resource, long maxAmount, TransactionContext transaction) {
+                            return ValveBlockEntity.this.getFluidStorage().extract(resource, maxAmount, transaction);
+                        }
+
+                        @Override
+                        public boolean isResourceBlank() {
+                            return resource.isBlank() || amount <= 0;
+                        }
+
+                        @Override
+                        public FluidVariant getResource() {
+                            return resource;
+                        }
+
+                        @Override
+                        public long getAmount() {
+                            return amount;
+                        }
+
+                        @Override
+                        public long getCapacity() {
+                            return fluidTank.getMaxCapacity();
+                        }
+                    }.getUnderlyingView()).iterator();
                 }
             };
         }
 
         return null;
+    }
+
+    public void setMode(ValveMode mode) {
+        this.mode = mode;
     }
 }

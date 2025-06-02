@@ -5,9 +5,9 @@ import dev.galacticraft.mod.machine.multiblock.MultiblockShell;
 import dev.galacticraft.mod.machine.multiblock.ShellBlockRule;
 import dev.galacticraft.mod.machine.multiblock.ShellComponent;
 import dev.galacticraft.mod.mixin.BucketItemAccessor;
-import dev.galacticraft.mod.mixin.BucketItemMixin;
-import mezz.jei.api.fabric.ingredients.fluids.JeiFluidIngredient;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BucketItem;
@@ -30,8 +30,16 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         return this.storedData;
     }
 
+    public void modifyStoredAmount(int change) {
+        this.storedData = this.storedData.modifyStoredAmount(change);
+    }
+
     public record FluidContent(Fluid fluid, int amount) {
         public static final FluidContent EMPTY = new FluidContent(Fluids.EMPTY, 0);
+
+        public FluidContent modifyStoredAmount(int change) {
+            return new FluidContent(this.fluid, this.amount + change);
+        }
     }
 
     public FluidTankMultiblock() {
@@ -147,6 +155,10 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
                     player.drop(fullBucket, false);
                 }
             }
+        }
+
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.sendSystemMessage(Component.literal(String.valueOf(this.storedData.amount)));
         }
         return true;
     }
