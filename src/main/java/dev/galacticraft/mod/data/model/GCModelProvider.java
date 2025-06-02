@@ -260,6 +260,19 @@ public class GCModelProvider extends FabricModelProvider {
 
         // MULTIBLOCK PARTS
         createValveBlock(GCBlocks.VALVE, generator);
+        generator.createTrivialCube(GCBlocks.TEMPERED_GLASS);
+        generator.createTrivialCube(GCBlocks.REINFORCED_TEMPERED_GLASS);
+        generator.createTrivialCube(GCBlocks.FLUID_TANK_CASING);
+        generator.createTrivialCube(GCBlocks.PRESSURIZED_CASING);
+        generator.createTrivialCube(GCBlocks.ITEM_STORAGE_CASING);
+        generator.createTrivialCube(GCBlocks.ENERGY_STORAGE_CASING);
+        generator.createTrivialCube(GCBlocks.CAPACITY_DISPLAY);
+        generator.createTrivialCube(GCBlocks.CAPACITY_MODULE_1);
+        generator.createTrivialCube(GCBlocks.CAPACITY_MODULE_2);
+        generator.createTrivialCube(GCBlocks.CAPACITY_MODULE_3);
+        generator.createTrivialCube(GCBlocks.TRANSFER_MODULE_1);
+        generator.createTrivialCube(GCBlocks.TRANSFER_MODULE_2);
+        generator.createTrivialCube(GCBlocks.TRANSFER_MODULE_3);
 
         // MISC MACHINES
 //        generator.createNonTemplateModelBlock(GCBlocks.CRYOGENIC_CHAMBER);

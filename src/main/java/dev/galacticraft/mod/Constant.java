@@ -246,6 +246,19 @@ public interface Constant {
 
         // Multiblock parts
         String VALVE = "valve";
+        String TEMPERED_GLASS = "tempered_glass";
+        String REINFORCED_TEMPERED_GLASS = "reinforced_tempered_glass";
+        String FLUID_TANK_CASING = "fluid_tank_casing";
+        String PRESSURIZED_CASING = "pressurized_casing";
+        String ITEM_STORAGE_CASING = "item_storage_casing";
+        String ENERGY_STORAGE_CASING = "energy_storage_casing";
+        String CAPACITY_DISPLAY = "capacity_display";
+        String CAPACITY_MODULE_1 = "capacity_module_1";
+        String CAPACITY_MODULE_2 = "capacity_module_2";
+        String CAPACITY_MODULE_3 = "capacity_module_3";
+        String TRANSFER_MODULE_1 = "transfer_module_1";
+        String TRANSFER_MODULE_2 = "transfer_module_2";
+        String TRANSFER_MODULE_3 = "transfer_module_3";
 
         // Moon Cheese
         String MOON_CHEESE_BLOCK = "moon_cheese_block";

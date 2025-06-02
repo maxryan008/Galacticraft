@@ -309,8 +309,20 @@ public class GCBlockLootTableProvider extends FabricBlockLootTableProvider {
         this.add(GCBlocks.PARACHEST, createParachestDrop(GCBlocks.PARACHEST));
 
         // MULTIBLOCK PARTS
-
         this.dropSelf(GCBlocks.VALVE);
+        this.dropSelf(GCBlocks.TEMPERED_GLASS);
+        this.dropSelf(GCBlocks.REINFORCED_TEMPERED_GLASS);
+        this.dropSelf(GCBlocks.FLUID_TANK_CASING);
+        this.dropSelf(GCBlocks.PRESSURIZED_CASING);
+        this.dropSelf(GCBlocks.ITEM_STORAGE_CASING);
+        this.dropSelf(GCBlocks.ENERGY_STORAGE_CASING);
+        this.dropSelf(GCBlocks.CAPACITY_DISPLAY);
+        this.dropSelf(GCBlocks.CAPACITY_MODULE_1);
+        this.dropSelf(GCBlocks.CAPACITY_MODULE_2);
+        this.dropSelf(GCBlocks.CAPACITY_MODULE_3);
+        this.dropSelf(GCBlocks.TRANSFER_MODULE_1);
+        this.dropSelf(GCBlocks.TRANSFER_MODULE_2);
+        this.dropSelf(GCBlocks.TRANSFER_MODULE_3);
     }
 
     private LootTable.Builder createLaunchPadTable(Block block) {

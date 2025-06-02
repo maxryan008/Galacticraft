@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "galacticraft:block/energy_storage_casing"
+    }
+  }
+}

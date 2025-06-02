@@ -277,6 +277,19 @@ public class GCBlocks {
 
     // MULTIBLOCK PARTS
     public static final Block VALVE = BLOCKS.registerWithItem(Constant.Block.VALVE, new ValveBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)));
+    public static final Block TEMPERED_GLASS = BLOCKS.registerWithItem(Constant.Block.TEMPERED_GLASS, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.GLASS)));
+    public static final Block REINFORCED_TEMPERED_GLASS = BLOCKS.registerWithItem(Constant.Block.REINFORCED_TEMPERED_GLASS, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN).sound(SoundType.GLASS)));
+    public static final Block FLUID_TANK_CASING = BLOCKS.registerWithItem(Constant.Block.FLUID_TANK_CASING, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)));
+    public static final Block PRESSURIZED_CASING = BLOCKS.registerWithItem(Constant.Block.PRESSURIZED_CASING, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN)));
+    public static final Block ITEM_STORAGE_CASING = BLOCKS.registerWithItem(Constant.Block.ITEM_STORAGE_CASING, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)));
+    public static final Block ENERGY_STORAGE_CASING = BLOCKS.registerWithItem(Constant.Block.ENERGY_STORAGE_CASING, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)));
+    public static final Block CAPACITY_DISPLAY = BLOCKS.registerWithItem(Constant.Block.CAPACITY_DISPLAY, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)));
+    public static final Block CAPACITY_MODULE_1 = BLOCKS.registerWithItem(Constant.Block.CAPACITY_MODULE_1, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.DIAMOND_BLOCK)));
+    public static final Block CAPACITY_MODULE_2 = BLOCKS.registerWithItem(Constant.Block.CAPACITY_MODULE_2, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.DIAMOND_BLOCK)));
+    public static final Block CAPACITY_MODULE_3 = BLOCKS.registerWithItem(Constant.Block.CAPACITY_MODULE_3, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.DIAMOND_BLOCK)));
+    public static final Block TRANSFER_MODULE_1 = BLOCKS.registerWithItem(Constant.Block.TRANSFER_MODULE_1, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.DIAMOND_BLOCK)));
+    public static final Block TRANSFER_MODULE_2 = BLOCKS.registerWithItem(Constant.Block.TRANSFER_MODULE_2, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.DIAMOND_BLOCK)));
+    public static final Block TRANSFER_MODULE_3 = BLOCKS.registerWithItem(Constant.Block.TRANSFER_MODULE_3, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.DIAMOND_BLOCK)));
 
     // LIGHT PANELS
     public static final Block SQUARE_LIGHT_PANEL = BLOCKS.registerWithItem(Constant.Block.SQUARE_LIGHT_PANEL, new LightPanelBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL)));

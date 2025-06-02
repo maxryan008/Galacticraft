@@ -237,6 +237,19 @@ public class GCTranslationProvider extends TranslationProvider {
 
         // MULTIBLOCK PARTS
         this.block(GCBlocks.VALVE, "Valve");
+        this.block(GCBlocks.TEMPERED_GLASS, "Tempered Glass");
+        this.block(GCBlocks.REINFORCED_TEMPERED_GLASS, "Reinforced Tempered Glass");
+        this.block(GCBlocks.FLUID_TANK_CASING, "Fluid Tank Casing");
+        this.block(GCBlocks.PRESSURIZED_CASING, "Pressurized Casing");
+        this.block(GCBlocks.ITEM_STORAGE_CASING, "Item Storage Casing");
+        this.block(GCBlocks.ENERGY_STORAGE_CASING, "Energy Storage Casing");
+        this.block(GCBlocks.CAPACITY_DISPLAY, "Capacity Display");
+        this.block(GCBlocks.CAPACITY_MODULE_1, "Capacity Module Tier 1");
+        this.block(GCBlocks.CAPACITY_MODULE_2, "Capacity Module Tier 2");
+        this.block(GCBlocks.CAPACITY_MODULE_3, "Capacity Module Tier 3");
+        this.block(GCBlocks.TRANSFER_MODULE_1, "Transfer Module Tier 1");
+        this.block(GCBlocks.TRANSFER_MODULE_2, "Transfer Module Tier 2");
+        this.block(GCBlocks.TRANSFER_MODULE_3, "Transfer Module Tier 3");
 
         // LIGHT PANELS
         this.block(GCBlocks.SQUARE_LIGHT_PANEL, "Light Panel (Square)");

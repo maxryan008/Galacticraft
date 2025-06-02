@@ -235,6 +235,19 @@ public class GCCreativeModeTabs {
 
                 // MULTIBLOCK PARTS
                 output.accept(VALVE);
+                output.accept(TEMPERED_GLASS);
+                output.accept(REINFORCED_TEMPERED_GLASS);
+                output.accept(FLUID_TANK_CASING);
+                output.accept(PRESSURIZED_CASING);
+                output.accept(ITEM_STORAGE_CASING);
+                output.accept(ENERGY_STORAGE_CASING);
+                output.accept(CAPACITY_DISPLAY);
+                output.accept(CAPACITY_MODULE_1);
+                output.accept(CAPACITY_MODULE_2);
+                output.accept(CAPACITY_MODULE_3);
+                output.accept(TRANSFER_MODULE_1);
+                output.accept(TRANSFER_MODULE_2);
+                output.accept(TRANSFER_MODULE_3);
 
                 for (DyeColor color : GCBlockRegistry.COLOR_ORDER) {
                     ItemStack stack = new ItemStack(PARACHEST);
