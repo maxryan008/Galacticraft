@@ -44,9 +44,9 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
 
     public FluidTankMultiblock() {
         super(10, 10, 10, List.of(
-                new ShellBlockRule(ShellComponent.CORNER, s -> s.is(Blocks.IRON_BLOCK)),
-                new ShellBlockRule(ShellComponent.EDGE, s -> s.is(Blocks.IRON_BLOCK)),
-                new ShellBlockRule(ShellComponent.FACE, s -> s.is(Blocks.IRON_BLOCK) || s.is(Blocks.GLASS) || s.is(GCBlocks.VALVE)),
+                new ShellBlockRule(ShellComponent.CORNER, s -> s.is(GCBlocks.FLUID_TANK_CASING)),
+                new ShellBlockRule(ShellComponent.EDGE, s -> s.is(GCBlocks.FLUID_TANK_CASING)),
+                new ShellBlockRule(ShellComponent.FACE, s -> s.is(GCBlocks.FLUID_TANK_CASING) || s.is(GCBlocks.TEMPERED_GLASS) || s.is(GCBlocks.VALVE) || s.is(GCBlocks.CAPACITY_DISPLAY)),
                 new ShellBlockRule(ShellComponent.INTERIOR, BlockState::isAir)
         ), () -> FluidContent.EMPTY);
     }

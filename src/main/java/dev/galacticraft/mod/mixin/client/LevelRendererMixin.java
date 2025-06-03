@@ -22,21 +22,29 @@
 
 package dev.galacticraft.mod.mixin.client;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.galacticraft.mod.Constant;
 import dev.galacticraft.mod.client.render.dimension.OverworldRenderer;
 import dev.galacticraft.mod.content.entity.orbital.RocketEntity;
 import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.RenderBuffers;
+import net.minecraft.client.renderer.*;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.util.FastColor;
 import net.minecraft.world.entity.player.Player;
 import org.joml.Matrix4f;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -44,6 +52,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
+    @Shadow @Final private Minecraft minecraft;
     @Unique
     private OverworldRenderer worldRenderer;
 
@@ -88,5 +97,56 @@ public class LevelRendererMixin {
         float outRange = outMax - outMin;
         float inRange = inMax - inMin;
         return (x - inMin) * outRange / inRange + outMin;
+    }
+
+    @Inject(
+            method = "renderSectionLayer",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/RenderType;setupRenderState()V",
+                    shift = At.Shift.BEFORE
+            )
+    )
+    private void injectSingleTranslucentQuad(RenderType renderType,
+                                             double camX, double camY, double camZ,
+                                             Matrix4f projectionMatrix, Matrix4f positionMatrix,
+                                             CallbackInfo ci) {
+        if (renderType != RenderType.translucent()) return;
+
+        RenderSystem.enableBlend();
+        //RenderSystem.defaultBlendFunc();
+        //RenderSystem.depthMask(true);
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+        //RenderSystem.disableCull();
+        RenderSystem.enableDepthTest();
+
+        Minecraft mc = Minecraft.getInstance();
+        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
+        VertexConsumer vc = bufferSource.getBuffer(Sheets.translucentCullBlockSheet());
+
+        PoseStack poseStack = new PoseStack();
+
+        // Translate to world position (e.g., block center at 10, 64, 10)
+        double x = 0, y = 0, z = 0;
+        poseStack.pushPose();
+        poseStack.translate(x - camX, y - camY, z - camZ);
+
+        PoseStack.Pose pose = poseStack.last();
+
+        float size = 1.0f;
+        int color = FastColor.ARGB32.color(200, 255, 0, 0); // ARGB: semi-transparent red (alpha = 0xCC)
+
+        vc.addVertex(pose.pose(), 0, 0, 0).setColor(color).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0, 0, 1);
+        vc.addVertex(pose.pose(), size, 0, 0).setColor(color).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0, 0, 1);
+        vc.addVertex(pose.pose(), size, size, 0).setColor(color).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0, 0, 1);
+        vc.addVertex(pose.pose(), 0, size, 0).setColor(color).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0, 0, 1);
+
+        poseStack.popPose();
+        bufferSource.endBatch(Sheets.translucentCullBlockSheet());
+
+        //RenderSystem.enableCull();
+        //RenderSystem.depthMask(true);
+        RenderSystem.defaultBlendFunc();
+        //RenderSystem.disableBlend();
     }
 }

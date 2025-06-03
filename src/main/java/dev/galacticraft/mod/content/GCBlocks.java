@@ -277,8 +277,15 @@ public class GCBlocks {
 
     // MULTIBLOCK PARTS
     public static final Block VALVE = BLOCKS.registerWithItem(Constant.Block.VALVE, new ValveBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)));
-    public static final Block TEMPERED_GLASS = BLOCKS.registerWithItem(Constant.Block.TEMPERED_GLASS, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.GLASS)));
-    public static final Block REINFORCED_TEMPERED_GLASS = BLOCKS.registerWithItem(Constant.Block.REINFORCED_TEMPERED_GLASS, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN).sound(SoundType.GLASS)));
+    public static final Block TEMPERED_GLASS = BLOCKS.registerWithItem(Constant.Block.TEMPERED_GLASS, new TransparentBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.GLASS)));
+    public static final Block REINFORCED_TEMPERED_GLASS = BLOCKS.registerWithItem(Constant.Block.REINFORCED_TEMPERED_GLASS, new TransparentBlock(
+            BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN)
+                    .noOcclusion()
+                    .isValidSpawn(Blocks::never)
+                    .isRedstoneConductor(Blocks::never)
+                    .isSuffocating(Blocks::never)
+                    .isViewBlocking(Blocks::never)
+    ));
     public static final Block FLUID_TANK_CASING = BLOCKS.registerWithItem(Constant.Block.FLUID_TANK_CASING, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)));
     public static final Block PRESSURIZED_CASING = BLOCKS.registerWithItem(Constant.Block.PRESSURIZED_CASING, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.OBSIDIAN)));
     public static final Block ITEM_STORAGE_CASING = BLOCKS.registerWithItem(Constant.Block.ITEM_STORAGE_CASING, new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)));
