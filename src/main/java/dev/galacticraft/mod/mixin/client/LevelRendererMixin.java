@@ -22,25 +22,24 @@
 
 package dev.galacticraft.mod.mixin.client;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.*;
 import dev.galacticraft.mod.Constant;
 import dev.galacticraft.mod.client.render.dimension.OverworldRenderer;
 import dev.galacticraft.mod.content.entity.orbital.RocketEntity;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.*;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -53,6 +52,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
     @Shadow @Final private Minecraft minecraft;
+    @Shadow @Final private ObjectArrayList<SectionRenderDispatcher.RenderSection> visibleSections;
     @Unique
     private OverworldRenderer worldRenderer;
 
@@ -100,53 +100,67 @@ public class LevelRendererMixin {
     }
 
     @Inject(
-            method = "renderSectionLayer",
+            method = "renderLevel",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/RenderType;setupRenderState()V",
+                    target = "Lnet/minecraft/client/renderer/LevelRenderer;renderSectionLayer(Lnet/minecraft/client/renderer/RenderType;DDDLorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
                     shift = At.Shift.BEFORE
             )
     )
-    private void injectSingleTranslucentQuad(RenderType renderType,
-                                             double camX, double camY, double camZ,
-                                             Matrix4f projectionMatrix, Matrix4f positionMatrix,
-                                             CallbackInfo ci) {
-        if (renderType != RenderType.translucent()) return;
+    private void injectCustomFluidQuads(
+            DeltaTracker tickCounter,
+            boolean renderBlockOutline,
+            Camera camera,
+            GameRenderer gameRenderer,
+            LightTexture lightmapTextureManager,
+            Matrix4f projection,
+            Matrix4f positionMatrix,
+            CallbackInfo ci
+    ) {
+        SectionRenderDispatcher dispatcher = Minecraft.getInstance().levelRenderer.getSectionRenderDispatcher();
+        BlockPos targetOrigin = new BlockPos(0, 0, 0); // dynamic block location
 
-        RenderSystem.enableBlend();
-        //RenderSystem.defaultBlendFunc();
-        //RenderSystem.depthMask(true);
-        RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
-        //RenderSystem.disableCull();
-        RenderSystem.enableDepthTest();
+        for (SectionRenderDispatcher.RenderSection section : this.visibleSections) {
+            if (section.getOrigin().equals(targetOrigin)) {
+                SectionRenderDispatcher.CompiledSection compiled = section.getCompiled();
 
-        Minecraft mc = Minecraft.getInstance();
-        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        VertexConsumer vc = bufferSource.getBuffer(Sheets.translucentCullBlockSheet());
+                // Build custom mesh
+                BufferBuilder builder = new BufferBuilder(new ByteBufferBuilder(256), VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+                int color = FastColor.ARGB32.color(200, 200, 0, 0);
+                int light = 0xF000F0;
+                float size = 1.0f;
 
-        PoseStack poseStack = new PoseStack();
+                builder.addVertex(0, 0, 0).setColor(color).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
+                builder.addVertex(size, 0, 0).setColor(color).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
+                builder.addVertex(size, size, 0).setColor(color).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
+                builder.addVertex(0, size, 0).setColor(color).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
 
-        // Translate to world position (e.g., block center at 10, 64, 10)
-        double x = 0, y = 0, z = 0;
-        poseStack.pushPose();
-        poseStack.translate(x - camX, y - camY, z - camZ);
+                MeshData mesh = builder.buildOrThrow();
 
-        PoseStack.Pose pose = poseStack.last();
+                // Sort using camera
+                Vec3 cam = camera.getPosition();
+                MeshData.SortState sortState = mesh.sortQuads(((SectionRenderDispatcherAccessor) dispatcher).getFixedBuffers().buffer(RenderType.translucent()), createVertexSorting(cam, targetOrigin));
 
-        float size = 1.0f;
-        int color = FastColor.ARGB32.color(200, 255, 0, 0); // ARGB: semi-transparent red (alpha = 0xCC)
+                // Upload to section’s own buffer
+                VertexBuffer buffer = section.getBuffer(RenderType.translucent());
+                buffer.bind();
+                if (((VertexBufferAccessor) buffer).getFormatNullable() == null) {
+                    break;
+                }
+                buffer.upload(mesh);
+                VertexBuffer.unbind();
 
-        vc.addVertex(pose.pose(), 0, 0, 0).setColor(color).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0, 0, 1);
-        vc.addVertex(pose.pose(), size, 0, 0).setColor(color).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0, 0, 1);
-        vc.addVertex(pose.pose(), size, size, 0).setColor(color).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0, 0, 1);
-        vc.addVertex(pose.pose(), 0, size, 0).setColor(color).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0, 0, 1);
+                // Inject mesh + transparency state
+                ((CompiledSectionAccessor) compiled).getHasBlocks().add(RenderType.translucent());
+                ((CompiledSectionAccessor) compiled).setTransparencyState(sortState);
+                break;
+            }
+        }
+    }
 
-        poseStack.popPose();
-        bufferSource.endBatch(Sheets.translucentCullBlockSheet());
-
-        //RenderSystem.enableCull();
-        //RenderSystem.depthMask(true);
-        RenderSystem.defaultBlendFunc();
-        //RenderSystem.disableBlend();
+    VertexSorting createVertexSorting(Vec3 camPos, BlockPos origin) {
+        return VertexSorting.byDistance(
+                (float)(camPos.x - origin.getX()), (float)(camPos.y - origin.getY()), (float)(camPos.z - origin.getZ())
+        );
     }
 }

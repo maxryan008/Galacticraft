@@ -37,6 +37,7 @@
     "client.CameraMixin",
     "client.ClientLevelMixin",
     "client.ClientPacketListenerMixin",
+    "client.CompiledSectionAccessor",
     "client.FabricItemMixin",
     "client.FogRendererMixin",
     "client.HumanoidModelMixin",
@@ -46,7 +47,9 @@
     "client.MinecraftMixin",
     "client.PauseMenuScreenMixin",
     "client.ScreenEffectRendererMixin",
-    "client.SpriteContentAccessor"
+    "client.SectionRenderDispatcherAccessor",
+    "client.SpriteContentAccessor",
+    "client.VertexBufferAccessor"
   ],
   "minVersion": "0.8.0",
   "injectors": {
