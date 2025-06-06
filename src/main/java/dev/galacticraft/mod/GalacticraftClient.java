@@ -22,6 +22,9 @@
 
 package dev.galacticraft.mod;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.galacticraft.api.client.tabs.InventoryTabRegistry;
 import dev.galacticraft.api.component.GCDataComponents;
 import dev.galacticraft.mod.client.GCKeyBinds;
@@ -74,9 +77,12 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.util.FastColor;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 
 @Environment(EnvType.CLIENT)
 public class GalacticraftClient implements ClientModInitializer {

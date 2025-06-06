@@ -25,6 +25,7 @@ package dev.galacticraft.mod.mixin.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import dev.galacticraft.mod.Constant;
+import dev.galacticraft.mod.client.render.DynamicFluidRenderer;
 import dev.galacticraft.mod.client.render.dimension.OverworldRenderer;
 import dev.galacticraft.mod.content.entity.orbital.RocketEntity;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -41,6 +42,7 @@ import net.minecraft.util.FastColor;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.lwjgl.system.MemoryUtil;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -48,6 +50,10 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
@@ -117,44 +123,48 @@ public class LevelRendererMixin {
             Matrix4f positionMatrix,
             CallbackInfo ci
     ) {
-        SectionRenderDispatcher dispatcher = Minecraft.getInstance().levelRenderer.getSectionRenderDispatcher();
-        BlockPos targetOrigin = new BlockPos(0, 0, 0); // dynamic block location
+        SectionRenderDispatcher dispatcher = this.minecraft.levelRenderer.getSectionRenderDispatcher();
+        BlockPos targetOrigin = new BlockPos(0, 0, 0); // Replace with dynamic origin later
 
         for (SectionRenderDispatcher.RenderSection section : this.visibleSections) {
-            if (section.getOrigin().equals(targetOrigin)) {
-                SectionRenderDispatcher.CompiledSection compiled = section.getCompiled();
-
-                // Build custom mesh
-                BufferBuilder builder = new BufferBuilder(new ByteBufferBuilder(256), VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
-                int color = FastColor.ARGB32.color(200, 200, 0, 0);
-                int light = 0xF000F0;
-                float size = 1.0f;
-
-                builder.addVertex(0, 0, 0).setColor(color).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
-                builder.addVertex(size, 0, 0).setColor(color).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
-                builder.addVertex(size, size, 0).setColor(color).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
-                builder.addVertex(0, size, 0).setColor(color).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
-
-                MeshData mesh = builder.buildOrThrow();
-
-                // Sort using camera
-                Vec3 cam = camera.getPosition();
-                MeshData.SortState sortState = mesh.sortQuads(((SectionRenderDispatcherAccessor) dispatcher).getFixedBuffers().buffer(RenderType.translucent()), createVertexSorting(cam, targetOrigin));
-
-                // Upload to section’s own buffer
-                VertexBuffer buffer = section.getBuffer(RenderType.translucent());
-                buffer.bind();
-                if (((VertexBufferAccessor) buffer).getFormatNullable() == null) {
-                    break;
-                }
-                buffer.upload(mesh);
-                VertexBuffer.unbind();
-
-                // Inject mesh + transparency state
-                ((CompiledSectionAccessor) compiled).getHasBlocks().add(RenderType.translucent());
-                ((CompiledSectionAccessor) compiled).setTransparencyState(sortState);
+            if (!section.getOrigin().equals(targetOrigin)) continue;
+            VertexBuffer buffer = section.getBuffer(RenderType.translucent());
+            if (((VertexBufferAccessor) buffer).getFormatNullable() == null) {
                 break;
             }
+            DynamicFluidRenderer.MeshDataCopy copy = DynamicFluidRenderer.get(targetOrigin);
+
+            // Build new mesh
+            ByteBufferBuilder byteBuilder = new com.mojang.blaze3d.vertex.ByteBufferBuilder(256);
+            var builder = new BufferBuilder(byteBuilder, copy.drawState().mode(), copy.drawState().format());
+            int color = FastColor.ARGB32.color(200, 200, 0, 0);
+            int light = 0xF000F0;
+            float size = 1.0f;
+
+            int x = 8, y = 8, z = 8;
+
+            builder.addVertex(x, y, z).setColor(color).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
+            builder.addVertex(x + size, y, z).setColor(color).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
+            builder.addVertex(x + size, y + size, z).setColor(color).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
+            builder.addVertex(x, y + size, z).setColor(color).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
+
+            MeshData dynamicMesh = builder.buildOrThrow();
+
+
+            Vec3 cam = camera.getPosition();
+            // Clone the mesh to prevent invalidation after upload
+            MeshData mergedMesh = DynamicFluidRenderer.mergeMeshes(copy, dynamicMesh);
+            if (mergedMesh == null) break;
+            MeshData.SortState sorted = mergedMesh.sortQuads(((SectionRenderDispatcherAccessor) dispatcher).getFixedBuffers().buffer(RenderType.translucent()), createVertexSorting(cam, targetOrigin));
+
+            buffer.bind();
+            buffer.upload(mergedMesh);
+            VertexBuffer.unbind();
+
+            SectionRenderDispatcher.CompiledSection compiled = section.getCompiled();
+            ((CompiledSectionAccessor) compiled).getHasBlocks().add(RenderType.translucent());
+            ((CompiledSectionAccessor) compiled).setTransparencyState(sorted);
+            break;
         }
     }
 
