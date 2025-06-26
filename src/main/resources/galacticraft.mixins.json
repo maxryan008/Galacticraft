@@ -46,11 +46,12 @@
     "client.LocalPlayerMixin",
     "client.MinecraftMixin",
     "client.PauseMenuScreenMixin",
+    "client.RenderSectionAccessor",
     "client.ScreenEffectRendererMixin",
     "client.SectionCompilerMixin",
     "client.SectionRenderDispatcherAccessor",
     "client.SpriteContentAccessor",
-    "client.VertexBufferAccessor"
+    "client.ViewAreaMixin"
   ],
   "minVersion": "0.8.0",
   "injectors": {

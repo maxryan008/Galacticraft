@@ -49,7 +49,7 @@ public class DynamicFluidRenderer {
         }
     }
 
-    private static final Map<BlockPos, MeshDataCopy> COMPILED_TRANSLUCENT_MESH_BUFFERS = new ConcurrentHashMap<>();
+    public static final Map<BlockPos, MeshDataCopy> COMPILED_TRANSLUCENT_MESH_BUFFERS = new ConcurrentHashMap<>(); //fixme make private not pub
 
     public static void storeOrRemove(BlockPos origin, MeshData mesh) {
         if (mesh == null) {

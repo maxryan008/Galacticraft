@@ -26,6 +26,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import dev.galacticraft.mod.Constant;
 import dev.galacticraft.mod.client.render.DynamicFluidRenderer;
+import dev.galacticraft.mod.client.render.TransparentQuadInjector;
 import dev.galacticraft.mod.client.render.dimension.OverworldRenderer;
 import dev.galacticraft.mod.content.entity.orbital.RocketEntity;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -36,13 +37,12 @@ import net.minecraft.client.renderer.*;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.FastColor;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
-import org.lwjgl.system.MemoryUtil;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -51,9 +51,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+
+import static dev.galacticraft.mod.client.render.DynamicFluidRenderer.COMPILED_TRANSLUCENT_MESH_BUFFERS;
+import static dev.galacticraft.mod.client.render.TransparentQuadInjector.quadMapByDimension;
 
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
@@ -105,72 +106,99 @@ public class LevelRendererMixin {
         return (x - inMin) * outRange / inRange + outMin;
     }
 
-    @Inject(
-            method = "renderLevel",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/LevelRenderer;renderSectionLayer(Lnet/minecraft/client/renderer/RenderType;DDDLorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
-                    shift = At.Shift.BEFORE
-            )
-    )
-    private void injectCustomFluidQuads(
+    @Inject(method = "renderLevel", at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/LevelRenderer;renderSectionLayer(Lnet/minecraft/client/renderer/RenderType;DDDLorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
+            shift = At.Shift.BEFORE
+    ))
+    private void gc$injectFluidGeometry(
             DeltaTracker tickCounter,
-            boolean renderBlockOutline,
+            boolean renderOutline,
             Camera camera,
-            GameRenderer gameRenderer,
-            LightTexture lightmapTextureManager,
+            GameRenderer renderer,
+            LightTexture lightmap,
             Matrix4f projection,
-            Matrix4f positionMatrix,
+            Matrix4f viewMatrix,
             CallbackInfo ci
     ) {
+        if (this.minecraft.level == null) return;
+
         SectionRenderDispatcher dispatcher = this.minecraft.levelRenderer.getSectionRenderDispatcher();
-        BlockPos targetOrigin = new BlockPos(0, 0, 0); // Replace with dynamic origin later
+        Vec3 cameraPos = camera.getPosition();
 
-        for (SectionRenderDispatcher.RenderSection section : this.visibleSections) {
-            if (!section.getOrigin().equals(targetOrigin)) continue;
-            VertexBuffer buffer = section.getBuffer(RenderType.translucent());
-            if (((VertexBufferAccessor) buffer).getFormatNullable() == null) {
-                break;
+        for (SectionRenderDispatcher.RenderSection section : List.copyOf(this.visibleSections)) {
+            BlockPos origin = section.getOrigin();
+            SectionPos sectionPos = SectionPos.of(origin);
+            List<TransparentQuadInjector.InjectedQuad> quads = new ArrayList<>(TransparentQuadInjector.getQuadsForSection(this.minecraft.level, sectionPos));
+
+            if (quads.isEmpty()) continue;
+
+            DynamicFluidRenderer.MeshDataCopy meshDataCopy = DynamicFluidRenderer.get(origin);
+
+            VertexFormat.Mode mode = (meshDataCopy != null && meshDataCopy.drawState() != null && meshDataCopy.drawState().mode() != null)
+                    ? meshDataCopy.drawState().mode()
+                    : VertexFormat.Mode.QUADS;
+
+            VertexFormat format = (meshDataCopy != null && meshDataCopy.drawState() != null && meshDataCopy.drawState().format() != null)
+                    ? meshDataCopy.drawState().format()
+                    : DefaultVertexFormat.BLOCK;
+
+            ByteBufferBuilder byteBuilder = new ByteBufferBuilder(1024);
+            BufferBuilder builder = new BufferBuilder(byteBuilder, mode, format);
+
+            for (TransparentQuadInjector.InjectedQuad quad : quads) {
+                TransparentQuadInjector.QuadVertex[] vertices = {quad.v1(), quad.v2(), quad.v3(), quad.v4()};
+                for (TransparentQuadInjector.QuadVertex vertex : vertices) {
+                    builder.addVertex(vertex.x() - origin.getX(), vertex.y() - origin.getY(), vertex.z() - origin.getZ())
+                            .setColor(vertex.color()).setUv(vertex.u(), vertex.v())
+                            .setOverlay(vertex.overlay()).setLight(vertex.light())
+                            .setNormal(vertex.nx(), vertex.ny(), vertex.nz());
+                }
             }
-            DynamicFluidRenderer.MeshDataCopy copy = DynamicFluidRenderer.get(targetOrigin);
 
-            // Build new mesh
-            ByteBufferBuilder byteBuilder = new com.mojang.blaze3d.vertex.ByteBufferBuilder(256);
-            var builder = new BufferBuilder(byteBuilder, copy.drawState().mode(), copy.drawState().format());
-            int color = FastColor.ARGB32.color(200, 200, 0, 0);
-            int light = 0xF000F0;
-            float size = 1.0f;
+            MeshData mesh;
+            try {
+                mesh = builder.buildOrThrow();
+            } catch (Exception e) {
+                Constant.LOGGER.error("Failed to build fluid mesh at {}: {}", sectionPos, e.getMessage(), e);
+                continue;
+            }
+            //byteBuilder.close();
 
-            int x = 8, y = 8, z = 8;
+            MeshData merged = (meshDataCopy != null) ? DynamicFluidRenderer.mergeMeshes(meshDataCopy, mesh) : mesh;
 
-            builder.addVertex(x, y, z).setColor(color).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
-            builder.addVertex(x + size, y, z).setColor(color).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
-            builder.addVertex(x + size, y + size, z).setColor(color).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
-            builder.addVertex(x, y + size, z).setColor(color).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0, 0, 1);
+            MeshData.SortState sortState = merged.sortQuads(
+                    ((SectionRenderDispatcherAccessor) dispatcher).getFixedBuffers().buffer(RenderType.translucent()),
+                    VertexSorting.byDistance(
+                            (float)(cameraPos.x - origin.getX()),
+                            (float)(cameraPos.y - origin.getY()),
+                            (float)(cameraPos.z - origin.getZ())
+                    )
+            );
 
-            MeshData dynamicMesh = builder.buildOrThrow();
-
-
-            Vec3 cam = camera.getPosition();
-            // Clone the mesh to prevent invalidation after upload
-            MeshData mergedMesh = DynamicFluidRenderer.mergeMeshes(copy, dynamicMesh);
-            if (mergedMesh == null) break;
-            MeshData.SortState sorted = mergedMesh.sortQuads(((SectionRenderDispatcherAccessor) dispatcher).getFixedBuffers().buffer(RenderType.translucent()), createVertexSorting(cam, targetOrigin));
+            VertexBuffer buffer;
+            Object oldBuffer = ((RenderSectionAccessor) section).getBufferMap().get(RenderType.translucent());
+            if (oldBuffer instanceof VertexBuffer oldBuffer2) {
+                buffer = oldBuffer2;
+            } else {
+                buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
+            }
 
             buffer.bind();
-            buffer.upload(mergedMesh);
+            buffer.upload(merged);
+            merged.close();
             VertexBuffer.unbind();
 
-            SectionRenderDispatcher.CompiledSection compiled = section.getCompiled();
-            ((CompiledSectionAccessor) compiled).getHasBlocks().add(RenderType.translucent());
-            ((CompiledSectionAccessor) compiled).setTransparencyState(sorted);
-            break;
-        }
-    }
+            ((RenderSectionAccessor) section).getBufferMap().put(RenderType.translucent(), buffer);
 
-    VertexSorting createVertexSorting(Vec3 camPos, BlockPos origin) {
-        return VertexSorting.byDistance(
-                (float)(camPos.x - origin.getX()), (float)(camPos.y - origin.getY()), (float)(camPos.z - origin.getZ())
-        );
+            SectionRenderDispatcher.CompiledSection compiled = section.getCompiled();
+            if (((CompiledSectionAccessor) compiled).getHasBlocks().isEmpty()) {
+                SectionRenderDispatcher.CompiledSection newCompiled = new SectionRenderDispatcher.CompiledSection();
+                ((RenderSectionAccessor) section).invokeSetCompiled(newCompiled);
+                compiled = newCompiled;
+            }
+            ((CompiledSectionAccessor) compiled).getHasBlocks().add(RenderType.translucent());
+            ((CompiledSectionAccessor) compiled).setTransparencyState(sortState);
+        }
     }
 }

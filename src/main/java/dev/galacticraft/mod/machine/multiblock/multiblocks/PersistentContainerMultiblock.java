@@ -14,6 +14,9 @@ public abstract class PersistentContainerMultiblock<T> extends MultiblockShell {
     protected T storedData;
     private final Supplier<T> defaultSupplier;
     final List<BlockPos> valvePositions = new ArrayList<>();
+    private BlockPos min;
+    private BlockPos max;
+    private Level level;
 
     public PersistentContainerMultiblock(int maxX, int maxY, int maxZ, List<ShellBlockRule> rules, Supplier<T> defaultSupplier) {
         super(maxX, maxY, maxZ, rules);
@@ -23,6 +26,9 @@ public abstract class PersistentContainerMultiblock<T> extends MultiblockShell {
 
     @Override
     public void onFormed(Level level, BlockPos min, BlockPos max, List<BlockPos> valves) {
+        this.min = min;
+        this.max = max;
+        this.level = level;
         valvePositions.clear();
         for (BlockPos pos : valves) {
             valvePositions.add(pos);
@@ -57,4 +63,16 @@ public abstract class PersistentContainerMultiblock<T> extends MultiblockShell {
 
     public abstract T tryExtract(long maxAmount, boolean simulate);
     public abstract long tryInsert(T value, boolean simulate);
+
+    public BlockPos getMax() {
+        return max;
+    }
+
+    public BlockPos getMin() {
+        return min;
+    }
+
+    public Level getLevel() {
+        return level;
+    }
 }

@@ -341,6 +341,7 @@ public abstract class MultiblockShell {
         return false;
     }
 
+    public abstract void restored();
     public abstract void onFormed(Level level, BlockPos min, BlockPos max, List<BlockPos> valves);
     public abstract void onBroken(Level level, BlockPos origin);
     public abstract boolean onClicked(Level level, BlockPos clickedBlock, BlockPos clickedPos, InteractionHand interactionHand, Player player);

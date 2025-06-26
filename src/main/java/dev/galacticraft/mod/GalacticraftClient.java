@@ -34,6 +34,7 @@ import dev.galacticraft.mod.client.model.GCRenderTypes;
 import dev.galacticraft.mod.client.model.types.UnbakedObjModel;
 import dev.galacticraft.mod.client.network.GCClientPacketReceiver;
 import dev.galacticraft.mod.client.particle.*;
+import dev.galacticraft.mod.client.render.TransparentQuadInjector;
 import dev.galacticraft.mod.client.render.block.entity.GCBlockEntityRenderer;
 import dev.galacticraft.mod.client.render.dimension.GCDimensionEffects;
 import dev.galacticraft.mod.client.render.entity.*;
@@ -76,6 +77,7 @@ import net.minecraft.client.particle.SplashParticle;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.entity.EntityType;
@@ -83,6 +85,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+
+import java.awt.*;
 
 @Environment(EnvType.CLIENT)
 public class GalacticraftClient implements ClientModInitializer {

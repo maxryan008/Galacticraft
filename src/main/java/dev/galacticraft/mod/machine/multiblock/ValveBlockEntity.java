@@ -46,7 +46,7 @@ public class ValveBlockEntity extends BlockEntity {
                 for (Direction dir : Constant.Misc.DIRECTIONS) {
                     Storage<FluidVariant> storage = FluidStorage.SIDED.find(level, worldPosition.relative(dir), dir.getOpposite());
                     if (storage != null && storage.supportsInsertion()) {
-                        System.out.println(StorageUtil.move(this.getFluidStorage(), storage, Predicates.alwaysTrue(), FluidConstants.BUCKET, null));
+                        StorageUtil.move(this.getFluidStorage(), storage, Predicates.alwaysTrue(), FluidConstants.BUCKET, null);
                     }
                 }
             }

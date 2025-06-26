@@ -1,14 +1,21 @@
 package dev.galacticraft.mod.machine.multiblock.multiblocks;
 
+import dev.galacticraft.mod.client.render.TransparentQuadInjector;
 import dev.galacticraft.mod.content.GCBlocks;
 import dev.galacticraft.mod.machine.multiblock.MultiblockShell;
 import dev.galacticraft.mod.machine.multiblock.ShellBlockRule;
 import dev.galacticraft.mod.machine.multiblock.ShellComponent;
 import dev.galacticraft.mod.mixin.BucketItemAccessor;
 import dev.galacticraft.mod.util.FluidUtil;
+import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandler;
+import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandlerRegistry;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BucketItem;
@@ -18,8 +25,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 
+import java.awt.*;
 import java.util.List;
 
 public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTankMultiblock.FluidContent> {
@@ -66,6 +75,17 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         this.maxCapacity = FluidUtil.bucketsToDroplets(interiorBlocks);
 
         super.onFormed(level, min, max, valves);
+
+        FluidState fluidState = Fluids.WATER.defaultFluidState();
+        FluidRenderHandler handler = FluidRenderHandlerRegistry.INSTANCE.get(fluidState.getType());
+        if (handler == null) return;
+
+        TextureAtlasSprite[] sprites = handler.getFluidSprites(level, min, fluidState);
+        if (sprites == null || sprites.length == 0 || sprites[0] == null) return;
+
+        TextureAtlasSprite sprite = sprites[0];
+
+        updateFluidQuads(level, min, max);
     }
 
     public long getMaxCapacity() {
@@ -79,6 +99,11 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
         long toExtract = Math.min(maxAmount, storedData.amount());
         if (!simulate) {
             storedData = new FluidContent(storedData.fluid(), storedData.amount() - toExtract);
+        }
+
+        Level level = this.getLevel();
+        if (!simulate && level != null) {
+            updateFluidQuads(level, this.getMin(), this.getMax());
         }
 
         return new FluidContent(storedData.fluid(), toExtract);
@@ -105,12 +130,18 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
             storedData = new FluidContent(storedData.fluid(), storedData.amount() + canInsert);
         }
 
+        Level level = this.getLevel();
+        if (!simulate && level != null) {
+            updateFluidQuads(level, this.getMin(), this.getMax());
+        }
+
         return canInsert;
     }
 
     @Override
     public void onBroken(Level level, BlockPos origin) {
         super.onBroken(level, origin);
+        TransparentQuadInjector.removeQuadsInRegion(level, this.getMin(), this.getMax());
     }
 
     @Override
@@ -169,5 +200,53 @@ public class FluidTankMultiblock extends PersistentContainerMultiblock<FluidTank
             this.storedData = tank.storedData;
             this.maxCapacity = tank.maxCapacity;
         }
+    }
+
+    private void updateFluidQuads(Level level, BlockPos min, BlockPos max) {
+        // Remove existing quads within the tank bounds
+        TransparentQuadInjector.removeQuadsInRegion(level, min, max);
+
+        if (this.storedData.amount() <= 0 || this.maxCapacity <= 0 || this.storedData.fluid() == Fluids.EMPTY)
+            return;
+
+        // Calculate fluid fill ratio and height
+        float fillRatio = Mth.clamp((float) this.storedData.amount() / (float) this.maxCapacity, 0.0f, 1.0f);
+        if (fillRatio <= 0.001f) return; // no fluid to display
+
+        int tankHeight = max.getY() - min.getY();
+        int internalHeight = tankHeight - 1;
+        float fluidLevelY = min.getY() + 1 + (internalHeight * fillRatio);
+
+        // Get fluid sprite
+        FluidState fluidState = this.storedData.fluid().defaultFluidState();
+        FluidRenderHandler handler = FluidRenderHandlerRegistry.INSTANCE.get(fluidState.getType());
+        if (handler == null) return;
+
+        TextureAtlasSprite[] sprites = handler.getFluidSprites(level, min, fluidState);
+        if (sprites == null || sprites.length == 0 || sprites[0] == null) return;
+        TextureAtlasSprite sprite = sprites[0];
+
+        // Quad appearance
+        int light = 0xF000F0;
+        int overlay = OverlayTexture.NO_OVERLAY;
+        int color = 0x88FFFFFF;
+
+        // Iterate over the interior XZ plane of the tank
+        for (int x = min.getX() + 1; x < max.getX(); x++) {
+            for (int z = min.getZ() + 1; z < max.getZ(); z++) {
+                // Create top face at fluidLevelY
+                TransparentQuadInjector.InjectedQuad quad = TransparentQuadInjector.faceQuad(
+                        x, fluidLevelY, z,
+                        x + 1, fluidLevelY, z + 1,
+                        sprite, Direction.UP, color, light, overlay
+                );
+                TransparentQuadInjector.addQuad(level, quad);
+            }
+        }
+    }
+
+    @Override
+    public void restored() {
+        updateFluidQuads(getLevel(), getMin(), getMax());
     }
 }

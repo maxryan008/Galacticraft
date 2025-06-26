@@ -64,6 +64,7 @@ public class MultiblockRegistry {
                         && restored.min().equals(result.min())
                         && restored.max().equals(formedMax)) {
                     shell.copyFrom(restored.shell());
+                    shell.restored();
                 }
 
                 getActiveInstances(level).add(newInstance);
