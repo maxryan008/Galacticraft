@@ -40,7 +40,6 @@ import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
@@ -52,9 +51,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.*;
-
-import static dev.galacticraft.mod.client.render.DynamicFluidRenderer.COMPILED_TRANSLUCENT_MESH_BUFFERS;
-import static dev.galacticraft.mod.client.render.TransparentQuadInjector.quadMapByDimension;
 
 @Mixin(LevelRenderer.class)
 public class LevelRendererMixin {
@@ -133,20 +129,21 @@ public class LevelRendererMixin {
 
             if (quads.isEmpty()) continue;
 
-            DynamicFluidRenderer.MeshDataCopy meshDataCopy = DynamicFluidRenderer.get(origin);
+            DynamicFluidRenderer.TrackedMesh trackedMesh = DynamicFluidRenderer.get(origin);
 
-            VertexFormat.Mode mode = (meshDataCopy != null && meshDataCopy.drawState() != null && meshDataCopy.drawState().mode() != null)
-                    ? meshDataCopy.drawState().mode()
+            VertexFormat.Mode mode = trackedMesh != null
+                    ? trackedMesh.mesh().drawState().mode()
                     : VertexFormat.Mode.QUADS;
 
-            VertexFormat format = (meshDataCopy != null && meshDataCopy.drawState() != null && meshDataCopy.drawState().format() != null)
-                    ? meshDataCopy.drawState().format()
+            VertexFormat format = trackedMesh != null
+                    ? trackedMesh.mesh().drawState().format()
                     : DefaultVertexFormat.BLOCK;
 
             ByteBufferBuilder byteBuilder = new ByteBufferBuilder(1024);
             BufferBuilder builder = new BufferBuilder(byteBuilder, mode, format);
 
             for (TransparentQuadInjector.InjectedQuad quad : quads) {
+                if (quad == null) continue;
                 TransparentQuadInjector.QuadVertex[] vertices = {quad.v1(), quad.v2(), quad.v3(), quad.v4()};
                 for (TransparentQuadInjector.QuadVertex vertex : vertices) {
                     builder.addVertex(vertex.x() - origin.getX(), vertex.y() - origin.getY(), vertex.z() - origin.getZ())
@@ -165,9 +162,16 @@ public class LevelRendererMixin {
             }
             //byteBuilder.close();
 
-            MeshData merged = (meshDataCopy != null) ? DynamicFluidRenderer.mergeMeshes(meshDataCopy, mesh) : mesh;
+            DynamicFluidRenderer.TrackedMesh merged;
+            if (trackedMesh != null) {
+                merged = DynamicFluidRenderer.mergeMeshes(trackedMesh, mesh);
+            } else {
+                merged = null;
+            }
 
-            MeshData.SortState sortState = merged.sortQuads(
+            MeshData mergedMesh = merged != null ? merged.mesh() : mesh;
+
+            MeshData.SortState sortState = mergedMesh.sortQuads(
                     ((SectionRenderDispatcherAccessor) dispatcher).getFixedBuffers().buffer(RenderType.translucent()),
                     VertexSorting.byDistance(
                             (float)(cameraPos.x - origin.getX()),
@@ -185,8 +189,11 @@ public class LevelRendererMixin {
             }
 
             buffer.bind();
-            buffer.upload(merged);
-            merged.close();
+            buffer.upload(mergedMesh);
+            if (merged != null) {
+                merged.close();
+                mergedMesh.close();
+            }
             VertexBuffer.unbind();
 
             ((RenderSectionAccessor) section).getBufferMap().put(RenderType.translucent(), buffer);

@@ -16,47 +16,35 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class DynamicFluidRenderer {
 
-    // Store full builder to preserve native memory
-    public static final class MeshDataCopy {
+    public static final class TrackedMesh {
+        private final MeshData mesh;
         private final ByteBufferBuilder builder;
-        private final ByteBufferBuilder.Result result;
-        private final MeshData.DrawState drawState;
 
-        public MeshDataCopy(ByteBufferBuilder builder, ByteBufferBuilder.Result result, MeshData.DrawState drawState) {
+        public TrackedMesh(MeshData mesh, ByteBufferBuilder builder) {
+            this.mesh = mesh;
             this.builder = builder;
-            this.result = result;
-            this.drawState = drawState;
         }
 
-        public MeshData cloneMeshData() {
-            ByteBuffer original = result.byteBuffer();
-            int size = original.remaining();
-
-            ByteBufferBuilder copyBuilder = new ByteBufferBuilder(size);
-            long dest = copyBuilder.reserve(size);
-            MemoryUtil.memCopy(MemoryUtil.memAddress(original), dest, size);
-
-            ByteBufferBuilder.Result copyResult = copyBuilder.build();
-            return new MeshData(copyResult, drawState);
+        public MeshData mesh() {
+            return mesh;
         }
 
-        public MeshData.DrawState drawState() {
-            return drawState;
-        }
-
-        public ByteBufferBuilder.Result result() {
-            return result;
+        public void close() {
+            builder.close();
         }
     }
 
-    public static final Map<BlockPos, MeshDataCopy> COMPILED_TRANSLUCENT_MESH_BUFFERS = new ConcurrentHashMap<>(); //fixme make private not pub
+    public static final Map<BlockPos, TrackedMesh> COMPILED_TRANSLUCENT_MESH_BUFFERS = new ConcurrentHashMap<>();
 
     public static void storeOrRemove(BlockPos origin, MeshData mesh) {
-        if (mesh == null) {
-            COMPILED_TRANSLUCENT_MESH_BUFFERS.remove(origin);
-            return;
-        }
-        var original = mesh.vertexBuffer();
+        BlockPos key = origin.immutable();
+
+        TrackedMesh old = COMPILED_TRANSLUCENT_MESH_BUFFERS.remove(key);
+        if (old != null) old.close();
+
+        if (mesh == null) return;
+
+        ByteBuffer original = mesh.vertexBuffer();
         int size = original.remaining();
 
         ByteBufferBuilder builder = new ByteBufferBuilder(size);
@@ -71,27 +59,46 @@ public class DynamicFluidRenderer {
                 mesh.drawState().indexType()
         );
 
-        ByteBufferBuilder.Result result = builder.build();
-
-        COMPILED_TRANSLUCENT_MESH_BUFFERS.put(origin.immutable(), new MeshDataCopy(builder, result, drawState));
+        MeshData newMesh = new MeshData(builder.build(), drawState);
+        COMPILED_TRANSLUCENT_MESH_BUFFERS.put(key, new TrackedMesh(newMesh, builder));
     }
 
-    public static MeshDataCopy get(BlockPos origin) {
+    public static TrackedMesh get(BlockPos origin) {
         return COMPILED_TRANSLUCENT_MESH_BUFFERS.get(origin);
     }
 
     public static void clear(BlockPos origin) {
-        COMPILED_TRANSLUCENT_MESH_BUFFERS.remove(origin);
+        BlockPos key = origin.immutable();
+        TrackedMesh mesh = COMPILED_TRANSLUCENT_MESH_BUFFERS.remove(key);
+        if (mesh != null) mesh.close();
     }
 
-    public static MeshData mergeMeshes(DynamicFluidRenderer.MeshDataCopy a, MeshData b) {
-        if (a == null) return b;
+    public static TrackedMesh cloneMesh(MeshData original) {
+        ByteBuffer src = original.vertexBuffer();
+        int size = src.remaining();
 
-        MeshData aMesh = a.cloneMeshData();
-        MeshData.DrawState aDraw = a.drawState();
+        ByteBufferBuilder builder = new ByteBufferBuilder(size);
+        long dest = builder.reserve(size);
+        MemoryUtil.memCopy(MemoryUtil.memAddress(src), dest, size);
+
+        MeshData.DrawState drawState = new MeshData.DrawState(
+                original.drawState().format(),
+                original.drawState().vertexCount(),
+                original.drawState().indexCount(),
+                original.drawState().mode(),
+                original.drawState().indexType()
+        );
+
+        return new TrackedMesh(new MeshData(builder.build(), drawState), builder);
+    }
+
+    public static TrackedMesh mergeMeshes(TrackedMesh a, MeshData b) {
+        if (a == null) return new TrackedMesh(b, null);
+
+        MeshData aMesh = a.mesh();
+        MeshData.DrawState aDraw = aMesh.drawState();
         MeshData.DrawState bDraw = b.drawState();
 
-        // --- Sanity checks ---
         VertexFormat format = aDraw.format();
         if (!format.equals(bDraw.format())) {
             throw new IllegalStateException("Vertex formats do not match! A=" + format + " B=" + bDraw.format());
@@ -111,18 +118,16 @@ public class DynamicFluidRenderer {
         ByteBuffer aBuf = aMesh.vertexBuffer();
         ByteBuffer bBuf = b.vertexBuffer();
 
-        if (aBuf.remaining() < aBytes) throw new IllegalStateException("aBuf has fewer bytes than expected!");
-        if (bBuf.remaining() < bBytes) throw new IllegalStateException("bBuf has fewer bytes than expected!");
+        if (aBuf.remaining() < aBytes || bBuf.remaining() < bBytes) {
+            throw new IllegalStateException("Insufficient vertex buffer data.");
+        }
 
-        // --- Allocate destination buffer ---
         ByteBufferBuilder builder = new ByteBufferBuilder(aBytes + bBytes);
         long dest = builder.reserve(aBytes + bBytes);
 
-        // --- Copy just the vertex bytes ---
         MemoryUtil.memCopy(MemoryUtil.memAddress(aBuf), dest, aBytes);
         MemoryUtil.memCopy(MemoryUtil.memAddress(bBuf), dest + aBytes, bBytes);
 
-        // --- Create merged MeshData ---
         MeshData.DrawState mergedDraw = new MeshData.DrawState(
                 format,
                 totalVertexCount,
@@ -131,6 +136,6 @@ public class DynamicFluidRenderer {
                 aDraw.indexType()
         );
 
-        return new MeshData(builder.build(), mergedDraw);
+        return new TrackedMesh(new MeshData(builder.build(), mergedDraw), builder);
     }
 }
