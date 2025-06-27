@@ -42,6 +42,7 @@ val clothConfigVersion       = project.property("cloth.config.version").toString
 val modMenuVersion           = project.property("modmenu.version").toString()
 val dynamicdimensionsVersion = project.property("dynamicdimensions.version").toString()
 val machineLibVersion        = project.property("machinelib.version").toString()
+val multiblocklibVersion     = project.property("multiblocklib.version").toString()
 val reiVersion               = project.property("rei.version").toString()
 val jeiVersion               = project.property("jei.version").toString()
 val badpacketsVersion        = project.property("badpackets.version").toString()
@@ -162,6 +163,12 @@ repositories {
             includeGroup("dev.galacticraft")
         }
     }
+    maven("https://maven.teamgalacticraft.org/") {
+        //for now this is just for multiblock lib
+        content {
+            includeGroup("dev.galacticraft")
+        }
+    }
     maven("https://mvn.devos.one/snapshots/") {
         content {
             includeGroup("io.github.fabricators_of_create.Porting-Lib")
@@ -233,6 +240,7 @@ dependencies {
 
     "core"("dev.galacticraft:dynamicdimensions-fabric:$dynamicdimensionsVersion")
     "core"("dev.galacticraft:MachineLib:$machineLibVersion")
+    "core"("dev.galacticraft:multiblocklib:$multiblocklibVersion")
     "core"("lol.bai:badpackets:fabric-$badpacketsVersion")
 
     // Optional Dependencies
