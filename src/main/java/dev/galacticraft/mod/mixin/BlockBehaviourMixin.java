@@ -39,6 +39,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -85,11 +87,19 @@ public abstract class BlockBehaviourMixin {
     }
 
     @Inject(method = "useItemOn", at = @At("HEAD"), cancellable = true)
-    private void handleWrenching(ItemStack itemStack, Level level, Player player, InteractionHand interactionHand, BlockHitResult blockHitResult, CallbackInfoReturnable<ItemInteractionResult> cir) {
-        if (itemStack.getItem() instanceof StandardWrenchItem) {
-            // Prevent the default behaviour such as opening a GUI when right-clicking
-            // on a block with a wrench to allow the wrench to rotate the block instead
-            cir.setReturnValue(ItemInteractionResult.FAIL);
+    private void handleWrenching(ItemStack itemStack, Level level, Player player, InteractionHand hand, BlockHitResult hit, CallbackInfoReturnable<ItemInteractionResult> cir) {
+        if (itemStack.getItem() instanceof StandardWrenchItem wrench) {
+            if (shouldSuppressBlockUse(level, hit.getBlockPos())) {
+                cir.setReturnValue(ItemInteractionResult.FAIL);
+            }
         }
+    }
+
+    public boolean shouldSuppressBlockUse(Level world, BlockPos pos) {
+        BlockState state = world.getBlockState(pos);
+        Block block = state.getBlock();
+        return block.getStateDefinition().getProperty("facing") instanceof EnumProperty
+                || block.getStateDefinition().getProperty("axis") instanceof EnumProperty
+                || block.getStateDefinition().getProperty("rotation") instanceof IntegerProperty;
     }
 }
